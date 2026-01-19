@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
         rider: document.getElementById('form-rider'),
         patient: document.getElementById('form-patient'),
         coordinator: document.getElementById('form-coordinator'),
-        foodie: document.getElementById('form-foodie')
+        foodie: document.getElementById('form-foodie'),
+        traveller: document.getElementById('form-traveller')
     };
     const findDealBtn = document.getElementById('find-deal-btn');
     const cursorDot = document.querySelector('.cursor-dot');
@@ -313,6 +314,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Toggle Logic
             const isOrder = document.getElementById('foodie-action-toggle').checked;
             payload.action = isOrder ? 'order' : 'search';
+        } else if (persona === 'traveller') {
+            payload.source = document.getElementById('trip-source').value;
+            payload.destination = document.getElementById('trip-dest').value;
+            payload.date = document.getElementById('trip-date').value;
+            payload.user_interests = document.getElementById('trip-interests').value;
         }
 
         logStatus(`Starting sequence for ${persona}...`);

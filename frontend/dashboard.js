@@ -18,7 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init Logic
     fetchTasks();
+    // Init Logic
+    fetchTasks();
     connectWebSocket();
+    mermaid.initialize({ startOnLoad: false });
 
     // Event Listeners
     closeModalBtn.addEventListener('click', closeModal);
@@ -238,6 +241,30 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (result.details && result.details.zomato) {
             // Foodie Search View (Example of other custom view)
             resultJson.textContent = JSON.stringify(result, null, 2);
+        } else if (result.flowchart_code) {
+            // Traveller View
+            resultJson.innerHTML = '';
+            const keys = Object.keys(result).filter(k => k !== 'flowchart_code');
+            const simpleResult = {};
+            keys.forEach(k => simpleResult[k] = result[k]);
+
+            // Create Mermaid Container
+            const mermaidContainer = document.createElement('div');
+            mermaidContainer.className = 'mermaid';
+            mermaidContainer.innerHTML = result.flowchart_code;
+
+            resultArea.appendChild(mermaidContainer);
+
+            // Render
+            mermaid.init(undefined, mermaidContainer);
+
+            // Append JSON details below
+            const rawDetails = document.createElement('details');
+            rawDetails.style.marginTop = '1rem';
+            rawDetails.style.color = '#777';
+            rawDetails.innerHTML = `<summary>Trip Details JSON</summary><pre>${JSON.stringify(simpleResult, null, 2)}</pre>`;
+            resultArea.appendChild(rawDetails);
+
         } else {
             // Default Raw View
             resultJson.textContent = JSON.stringify(result, null, 2);
