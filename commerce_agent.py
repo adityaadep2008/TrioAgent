@@ -38,10 +38,21 @@ class CommerceAgent:
         """Robust price parsing utility."""
         if not price_str: return float('inf')
         try:
-            clean = str(price_str).lower().replace(',', '').replace('₹', '').replace('rs', '').replace('rs.', '').strip()
+            raw = str(price_str).strip()
+            # print(f"[DEBUG] Parsing Price Raw: '{raw}'") # User requested investigation of mismatched logs
+            
+            clean = raw.lower().replace(',', '').replace('₹', '').replace('rs', '').replace('rs.', '').strip()
             match = re.search(r'\d+(\.\d+)?', clean)
-            return float(match.group()) if match else float('inf')
-        except:
+            
+            if match:
+                 val = float(match.group())
+                 # print(f"[DEBUG] Parsed Value: {val}")
+                 return val
+            else:
+                 print(f"[Warn] Could not extract number from price string: '{raw}'")
+                 return float('inf')
+        except Exception as e:
+            print(f"[Error] Price Parse Failed for '{price_str}': {e}")
             return float('inf')
 
     async def execute_task(self, app_name: str, query: str, item_type: str, action: str = "search", target_item: str = None) -> dict:

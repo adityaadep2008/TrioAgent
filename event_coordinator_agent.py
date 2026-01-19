@@ -266,8 +266,10 @@ class EventCoordinatorAgent:
         z_price = float(z_data.get('numeric_price', float('inf')))
         s_price = float(s_data.get('numeric_price', float('inf')))
         
+        print(f"      ⚖️  Comparison: Zomato ({z_price}) vs Swiggy ({s_price})")
+        
         if z_price == float('inf') and s_price == float('inf'):
-            print(f"      ❌ Price not found for {item}.")
+            print(f"      ❌ Price not found for {item} on ANY platform.")
             return None
 
         best_app = "Swiggy"
@@ -275,11 +277,16 @@ class EventCoordinatorAgent:
         best_title = s_data.get('title', item)
         best_restaurant = s_data.get('restaurant', 'Unknown')
         
-        if z_price < s_price:
+        # Explicit Logic:
+        # If Zomato exists and Swiggy fails (inf) -> Zomato wins
+        # If Zomato exists and is cheaper than Swiggy -> Zomato wins
+        if z_price < s_price: 
             best_app = "Zomato"
             best_price = z_price
             best_title = z_data.get('title', item)
             best_restaurant = z_data.get('restaurant', 'Unknown')
+        
+        print(f"      🏆 Winner: {best_app} @ {best_price}")
             
         print(f"      🏆 Winner: {best_app} ({best_restaurant}) @ {best_price}")
         
