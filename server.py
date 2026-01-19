@@ -15,6 +15,12 @@ from ride_comparison_agent import RideComparisonAgent
 from pharmacy_agent import PharmacyAgent
 from event_coordinator_agent import EventCoordinatorAgent
 
+# Voyager-1 Imports
+from agents.transit_agent import TransitManager
+from agents.stay_agent import StayManager
+from trip_visualizer import TripVisualizer
+from schemas import FullTripPlan
+
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("DroidServer")
@@ -109,6 +115,12 @@ class TaskPayload(BaseModel):
     # For Coordinator
     event_name: str = None
     guest_list: list = [] # [{'name':..., 'phone':...}]
+    
+    # For Traveller
+    source: str = None
+    destination: str = None
+    date: str = None
+    user_interests: str = None
     
 @app.get("/")
 async def root():
@@ -297,6 +309,49 @@ async def run_agent_task(payload: TaskPayload):
             logistics = [] 
             await agent.orchestrate_event(payload.event_name, payload.guest_list, logistics)
             result = {"status": "success", "message": "Event Orchestration Complete"}
+
+        elif payload.persona == "traveller":
+            await log_and_broadcast(task_id, f"✈️ Starting Voyager-1: Trip to {payload.destination}...")
+            
+            transit_agent = TransitManager()
+            stay_agent = StayManager()
+            
+            # 1. Flight
+            await log_and_broadcast(task_id, f"Searching flights from {payload.source} to {payload.destination}...")
+            flight = await transit_agent.find_best_flight(payload.source, payload.destination, payload.date)
+            await log_and_broadcast(task_id, f"✅ Flight Found: {flight.airline} {flight.flight_number} ({flight.arrival_time})")
+            
+            # 2. Cab
+            await log_and_broadcast(task_id, f"Booking cab for arrival at {flight.arrival_time}...")
+            cab = await transit_agent.book_cab(payload.destination, flight.arrival_time)
+            await log_and_broadcast(task_id, f"✅ Cab Scheduled: {cab.provider} at {cab.pickup_time}")
+            
+            # 3. Hotel
+            await log_and_broadcast(task_id, f"Finding hotels in {payload.destination}...")
+            hotel = await stay_agent.find_hotel(payload.destination, payload.date)
+            await log_and_broadcast(task_id, f"✅ Hotel Found: {hotel.name} ({hotel.price_per_night})")
+            
+            # 4. Itinerary
+            await log_and_broadcast(task_id, f"Generating itinerary based on: {payload.user_interests}...")
+            itinerary = await stay_agent.generate_itinerary(hotel.name, payload.user_interests)
+            await log_and_broadcast(task_id, f"✅ Itinerary Generated for {len(itinerary)} days.")
+            
+            # Compile
+            full_plan = FullTripPlan(
+                flight=flight,
+                arrival_cab=cab,
+                hotel=hotel,
+                daily_schedule=itinerary
+            )
+            
+            # 5. Visualizer
+            await log_and_broadcast(task_id, "Generating Trip Visualization...")
+            mermaid_code = TripVisualizer.generate_mermaid(full_plan)
+            full_plan.flowchart_code = mermaid_code
+            
+            result = full_plan.dict()
+            status = "success"
+            msg = f"Trip to {payload.destination} is ready!"
 
         # Determine final status
         if result:
