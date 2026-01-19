@@ -102,12 +102,17 @@ This project uses the **DroidRun Professional Architecture**:
 
 ## 4. Event Coordinator Agent (`event_coordinator_agent.py`)
 
-Automates sending event invitations via WhatsApp to a list of contacts.
+Automates full event lifecycle:
+1.  **Invites**: Sends WhatsApp invites with a food preference question.
+2.  **Listens**: Polls WhatsApp for replies (e.g., "I want Pizza").
+3.  **Plans**: Compares food prices (Swiggy vs Zomato) for requested items.
+4.  **Orders**: Places bulk orders for the best deals.
 
 ### Usage
 ```bash
-python event_coordinator_agent.py --contacts "Pravin, Pravin 2" --event "Birthday Bash" --date "20 Jan" --time "8 PM" --location "Mumbai"
+python event_coordinator_agent.py --contacts "Pravin, Pravin 2" --event "Hackathon Party" --date "19 Jan" --time "8 PM" --location "Mumbai"
 ```
+The agent will run continuously (polling) until it collects responses or times out. Ensure the phone is unlocked during polling.
 
 ### Flags
 - `--contacts`: Comma-separated list of contact names (must match how they are saved in your phone).
