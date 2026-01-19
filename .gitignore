@@ -1,10 +1,12 @@
 .env
-droidrun_exp
-venv/
+droidrun_.venv/
+.env
 __pycache__/
-*.pyc
+*.log
+trajectories/
+droidrun_exp/
+.DS_Storepyc
 screenshots/
 logs/
 neuro_state_*.png
 droidrun_exp
-

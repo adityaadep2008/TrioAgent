@@ -1,123 +1,107 @@
-# DroidRun Auto - Commerce & Service Agents
+# DroidRun Auto 🤖📱
 
-This project implements intelligent autonomous agents using the [DroidRun](https://github.com/droidrun/droidrun) framework. These agents leverage key-less signing, advanced vision, and reasoning capabilities (powered by Google Gemini 2.5 Flash) to automate complex tasks across multiple Android applications.
+**Autonomous Multi-Agent System for Mobile Interaction**
 
-## 🤖 Available Agents
-
-### 1. Commerce Agent (Food Delivery)
-**Script**: `commerce_agent.py`
-**Goal**: Compare food prices across **Swiggy** and **Zomato** to find the cheapest option ("Victor").
-
-**Key Features**:
-- **Multi-App Orchestration**: Navigates both apps seamlessly.
-- **Smart Parsing**: Extracts restaurant names, ratings, and prices even from complex UIs.
-- **Victor Logic**: Automatically identifies the best deal.
-
-**Usage**:
-```bash
-python commerce_agent.py --task food --query "Masala Dosa"
-```
+DroidRun Auto is a cutting-edge autonomous agent framework capable of executing complex real-world tasks on an Android device. By leveraging **Gemini 2.5 Flash** and the **DroidRun framework**, it orchestrates specialized agents to perform actions like price comparison, ride booking, pharmacy searches, and autonomous food ordering.
 
 ---
 
-### 2. Rider Agent (Ride Sharing)
-**Script**: `ride_comparison_agent.py`
-**Goal**: Compare ride prices between **Uber** and **Ola** for a specific route.
+## 🚀 Features
 
-**Key Features**:
-- **Preference Filtering**: prioritize specific vehicle types (`auto`, `sedan`, `cab`).
-- **Dynamic Prompting**: Customizes visual search based on your preference.
-
-**Usage**:
-```bash
-# Default (Compare Cabs)
-python ride_comparison_agent.py --pickup "Home" --drop "Office"
-
-# Prefer Auto/Rickshaw
-python ride_comparison_agent.py --pickup "Current Location" --drop "Malls" --preference auto
-
-# Prefer Sedans
-python ride_comparison_agent.py --pickup "Airport" --drop "Hotel" --preference sedan
-```
-**Flags**:
-- `--preference`: Options: `cab` (default), `auto`, `sedan`.
+*   **🛒 Autonomous Shopping**: Scans Amazon and Flipkart to find the best deals for a product.
+*   **🚕 Ride Comparison**: Compares prices between Uber and Ola (simulated/vision-based) to find the cheapest ride.
+*   **💊 Pharmacy Scout**: Searches online pharmacies like 1mg or Apollo for medicine availability.
+*   **🎈 Event Coordinator**:
+    *   Sends invitations via WhatsApp.
+    *   Polls for replies (e.g., "I want Pizza").
+    *   Autonomously researches food prices across Swiggy and Zomato.
+*   **🍔 Foodie Persona (NEW/HOT)**:
+    *   **Find Best Deal**: Searches Swiggy and Zomato for your craving and reports the cheapest option.
+    *   **Autonomous Order**: Actually places the order via Cash on Delivery (COD) for true "hands-off" convenience.
 
 ---
 
-### 3. Pharmacy Agent (Medicine Basket)
-**Script**: `pharmacy_agent.py`
-**Goal**: Compare the total cost of a **basket of medicines** across **Tata 1mg**, **Apollo 24|7**, and **PharmEasy**.
+## 🛠️ Architecture
 
-**Key Features**:
-- **Basket Logic**: Sums up prices for a list of items to find the cheapest *total* order.
-- **Quantity Support**: Calculates cost based on required quantities.
-- **App Filtering**: Run comparisons on specific apps only.
-
-**Usage**:
-```bash
-# Compare a basket of medicines
-python pharmacy_agent.py --meds "Dolo 650:1, Eco Sprin Gold 40:2"
-
-# Filter specific apps
-python pharmacy_agent.py --meds "Dolo 650:1" --apps "Tata 1mg, Apollo 24|7"
-```
-**Flags**:
-- `--meds`: Comma-separated list in `"MedicineName:Quantity"` format.
-    - Example: `"Dolo 650:1, Eco Sprin:2"` (1 strip of Dolo, 2 strips of Eco Sprin).
-- `--apps`: Comma-separated list of apps to search (e.g., `"Tata 1mg, PharmEasy"`).
+The system is built with a modular "Persona" architecture:
+*   **Backend**: FastAPI server with WebSocket support for real-time status broadcasting.
+*   **Frontend**: A sleek, GSAP-animated web interface for selecting personas and monitoring tasks.
+*   **Agents**: specialized Python classes (`CommerceAgent`, `EventCoordinatorAgent`, etc.) wrapping DroidRun logic.
+*   **Vision & Reasoning**: Uses screen parsing (Vision) to interact with non-API-enabled mobile apps natively.
 
 ---
 
-## 🛠️ Setup & Configuration
+## 📦 Installation
 
 ### Prerequisites
-1.  **Python 3.10+**
-2.  **DroidRun Installed**: `pip install droidrun`
-3.  **Android Device**: Connected via ADB and accessible.
-4.  **API Keys**: Google Gemini API Key.
+1.  **Android Phone** enabled with USB Debugging connected to PC.
+2.  **Python 3.10+** installed.
+3.  **ADB (Android Debug Bridge)** installed and available in PATH.
+4.  **Google Gemini API Key**.
 
-### Environment Variables
-Create a `.env` file in the root directory:
-```env
-# Required for Reasoning & Vision
-GEMINI_API_KEY=your_api_key_here
-# or
-GOOGLE_API_KEY=your_api_key_here
-```
+### Setup
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/your-username/devrunauto.git
+    cd devrunauto
+    ```
 
-## 📂 Project Structure
-- `commerce_agent.py`: Food delivery comparison logic.
-- `ride_comparison_agent.py`: Ride-sharing logic with preferences.
-- `pharmacy_agent.py`: Medicine basket comparison logic.
-- `neurorun/`: Core orchestration utilities (if applicable).
+2.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-## 🚀 Architecture
-This project uses the **DroidRun Professional Architecture**:
-- **ConfigManager**: Structured configuration for Agents, Managers, and Executors.
-- **LLM Picker**: Dynamic model loading (`load_llm`).
-- **Vision & Reasoning**: Enabled via `AgentConfig` for robust UI interaction.
-- **Telemetry**: Disabled for local privacy/stability.
+3.  **Environment Configuration**:
+    Create a `.env` file in the root directory:
+    ```env
+    GOOGLE_API_KEY=your_gemini_api_key_here
+    GEMINI_API_KEY=your_gemini_api_key_here
+    ```
 
 ---
 
-## 4. Event Coordinator Agent (`event_coordinator_agent.py`)
+## 🚦 Usage
 
-Automates full event lifecycle:
-1.  **Invites**: Sends WhatsApp invites with a food preference question.
-2.  **Listens**: Polls WhatsApp for replies (e.g., "I want Pizza").
-3.  **Plans**: Compares food prices (Swiggy vs Zomato) for requested items.
-4.  **Orders**: Places bulk orders for the best deals.
+### 1. Start the System (Recommended)
+Run the all-in-one launcher (if available) or start manually:
 
-### Usage
+**Backend (Terminal 1):**
 ```bash
-python event_coordinator_agent.py --contacts "Pravin, Pravin 2" --event "Hackathon Party" --date "19 Jan" --time "8 PM" --location "Mumbai"
+python server.py
 ```
-The agent will run continuously (polling) until it collects responses or times out. Ensure the phone is unlocked during polling.
 
-### Flags
-- `--contacts`: Comma-separated list of contact names (must match how they are saved in your phone).
-- `--event`: Name of the event.
-- `--date`: Date of the event.
-- `--time`: Time of the event.
-- `--location`: Venue of the event.
-- `--app`: App to use (default: "WhatsApp").
+**Frontend (Terminal 2):**
+```bash
+cd frontend
+python -m http.server 8081
+```
+
+### 2. Access the Interface
+Open your browser and navigate to: `http://localhost:8081`
+
+### 3. Select a Persona
+*   **Shopper**: Enter a product name (e.g., "Nike Shoes") -> Watch it compare prices.
+*   **Food Order (Foodie)**:
+    *   Enter a craving (e.g., "Chicken Biryani").
+    *   **Toggle Switch**:
+        *   *Find Best Deal*: Safe mode. Scans apps and tells you the cheapest price.
+        *   *Autonomous Order*: **DANGER ZONE**. Will actually add to cart and place a COD order.
+
+---
+
+## 📂 Project Structure
+
+*   `server.py`: Main FastAPI entry point and WebSocket manager.
+*   `commerce_agent.py`: Logic for Shopping and Food Ordering (Swiggy/Zomato).
+*   `event_coordinator_agent.py`: Complex logic for WhatsApp coordination and event planning.
+*   `frontend/`: HTML/CSS/JS files for the web UI.
+*   `requirements.txt`: Python dependencies.
+
+---
+
+## ⚠️ Disclaimer
+
+**This tool performs REAL actions on your device.**
+*   "Autonomous Order" mode **WILL** place orders if not interrupted. 
+*   Always monitor the agent during execution.
+*   The developers are not responsible for accidental orders or unintended messages sent by the agents.

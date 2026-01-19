@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
         shopper: document.getElementById('form-shopper'),
         rider: document.getElementById('form-rider'),
         patient: document.getElementById('form-patient'),
-        coordinator: document.getElementById('form-coordinator')
+        coordinator: document.getElementById('form-coordinator'),
+        foodie: document.getElementById('form-foodie')
     };
     const findDealBtn = document.getElementById('find-deal-btn');
     const cursorDot = document.querySelector('.cursor-dot');
@@ -222,6 +223,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Toggle Text Listener
+    const toggle = document.getElementById('foodie-action-toggle');
+    const toggleText = document.getElementById('toggle-status-text');
+    if (toggle) {
+        toggle.addEventListener('change', () => {
+            if (toggle.checked) {
+                toggleText.textContent = "Autonomous Order";
+                gsap.to(toggleText, { color: "#000", fontWeight: "bold", duration: 0.3 });
+            } else {
+                toggleText.textContent = "Find Best Deal";
+                gsap.to(toggleText, { color: "#555", fontWeight: "normal", duration: 0.3 });
+            }
+        });
+    }
+
     // API & WebSocket Interaction
     findDealBtn.addEventListener('click', async () => {
         const persona = hiddenInput.value;
@@ -252,6 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gName) {
                 payload.guest_list = [{ name: gName, phone: gPhone }];
             }
+        } else if (persona === 'foodie') {
+            payload.food_item = document.getElementById('food-item').value;
+            // Toggle Logic
+            const isOrder = document.getElementById('foodie-action-toggle').checked;
+            payload.action = isOrder ? 'order' : 'search';
         }
 
         logStatus(`Starting sequence for ${persona}...`);
@@ -285,6 +306,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onmessage = (event) => {
             logStatus(`> ${event.data}`);
+
+            // Check for Task Completion
+            if (event.data.includes("✅ Task Complete")) {
+                try {
+                    const jsonStr = event.data.split("Result: ")[1];
+                    const result = JSON.parse(jsonStr);
+
+                    const resultPanel = document.getElementById('result-panel');
+                    const resultMsg = document.getElementById('result-message');
+
+                    if (resultPanel && resultMsg) {
+                        resultPanel.classList.remove('hidden');
+                        // Small timeout to allow display:block to apply before opacity transition
+                        setTimeout(() => resultPanel.classList.add('active'), 50);
+
+                        resultMsg.textContent = result.message || "Operation Successful";
+
+                        // GSAP Emphasis
+                        gsap.from(resultMsg, { scale: 1.5, color: "#4CAF50", duration: 0.5, ease: "back.out(1.7)" });
+                    }
+                } catch (e) {
+                    console.error("Error parsing result for UI", e);
+                }
+            }
         };
 
         ws.onerror = (error) => {

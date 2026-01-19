@@ -56,6 +56,9 @@ class TaskPayload(BaseModel):
     pickup: str = None
     drop: str = None
     medicine: str = None
+    # For Foodie
+    food_item: str = None
+    action: str = "search" # 'search' or 'order'
     # For Coordinator
     event_name: str = None
     guest_list: list = [] # [{'name':..., 'phone':...}]
@@ -112,6 +115,62 @@ async def run_agent_task(payload: TaskPayload):
             await manager.broadcast(f"Searching for medicine: {payload.medicine}...")
             full_res = await agent.compare_prices(payload.medicine, "patient")
             result = full_res.get('best_option', {"status": "failed"})
+
+        elif payload.persona == "foodie":
+             agent = CommerceAgent(model="models/gemini-2.5-flash")
+             await manager.broadcast(f"🍔 Foodie Mode Activated: {payload.action.upper()} '{payload.food_item}'")
+             
+             if payload.action == 'order':
+                 # Autonomous Ordering
+                 order_res = await agent.auto_order_cheapest(payload.food_item)
+                 # Extract details for message
+                 # order_res looks like { 'zomato':..., 'swiggy':..., 'order_status':... }
+                 # We want to identify the winner to show nicely
+                 
+                 msg = "Order Completed." 
+                 # Try to extract details from logs/result structure if possible
+                 # Currently auto_order_cheapest prints to stdout mostly, returns full dict
+                 # Let's try to parse the 'order_status' key
+                 
+                 final_status = order_res.get('order_status', {}).get('status', 'unknown')
+                 if final_status == 'success':
+                     msg = "✅ Order Placed Successfully!"
+                 else:
+                     msg = "⚠️ Order Attempted (Check Device)."
+
+                 result = {
+                     "status": "success",
+                     "message": msg,
+                     "details": order_res
+                 }
+
+             else:
+                 # Search Only (Zomato + Swiggy)
+                 results = {}
+                 platforms = ["Zomato", "Swiggy"]
+                 for p in platforms:
+                      res = await agent.execute_task(p, payload.food_item, "food item", action="search")
+                      results[p.lower()] = res
+                      await asyncio.sleep(1)
+                 
+                 # Combine results for frontend display
+                 z_price = results.get('zomato', {}).get('data', {}).get('price', 'N/A')
+                 s_price = results.get('swiggy', {}).get('data', {}).get('price', 'N/A')
+                 
+                 # Determine cheaper
+                 zp = float(results.get('zomato', {}).get('data', {}).get('numeric_price', float('inf')))
+                 sp = float(results.get('swiggy', {}).get('data', {}).get('numeric_price', float('inf')))
+                 
+                 winner = "None"
+                 if zp < sp: winner = "Zomato"
+                 elif sp < zp: winner = "Swiggy"
+                 elif zp == sp and zp != float('inf'): winner = "Tie"
+
+                 result = {
+                     "status": "success", 
+                     "message": f"Best Deal Found: {winner}. (Zomato: {z_price}, Swiggy: {s_price})",
+                     "details": results
+                 }
 
         elif payload.persona == "coordinator":
             agent = EventCoordinatorAgent(model="models/gemini-2.5-flash")
