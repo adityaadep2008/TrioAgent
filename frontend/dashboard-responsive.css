@@ -1,0 +1,114 @@
+/* Responsive Overrides */
+@media (max-width: 1024px) {
+    .tasks-grid {
+        gap: 2rem;
+        padding: 2rem;
+    }
+
+    .dashboard-header {
+        padding: 1.5rem 2rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* Header Stack */
+    .dashboard-header {
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem 1rem;
+        text-align: center;
+    }
+
+    .header-center {
+        order: -1;
+        /* Title first */
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .header-line {
+        width: 30px;
+        /* Smaller line */
+    }
+
+    .back-link {
+        font-size: 0.8rem;
+    }
+
+    .status-indicator {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    /* Grid */
+    .tasks-grid {
+        grid-template-columns: 1fr;
+        /* Full width cards */
+        padding: 1rem;
+        gap: 1.5rem;
+    }
+
+    .task-card {
+        padding: 1.5rem;
+        min-height: auto;
+        /* Allow auto height */
+    }
+
+    .task-info {
+        font-size: 1.3rem;
+        margin: 1.5rem 0;
+    }
+
+    /* Modal */
+    .modal-content {
+        width: 95%;
+        height: 90vh;
+    }
+
+    .modal-header h3 {
+        font-size: 2rem;
+    }
+
+    /* Disable Custom Cursor logic essentially by hiding it */
+    .cursor-dot,
+    .cursor-outline {
+        display: none !important;
+    }
+
+    .dashboard-body {
+        cursor: auto;
+        /* Restore default cursor */
+    }
+
+    .task-card {
+        cursor: pointer;
+        /* Restore pointer */
+    }
+}
+
+@media (hover: none) {
+
+    /* Touch devices specific */
+    .cursor-dot,
+    .cursor-outline {
+        display: none !important;
+    }
+
+    .dashboard-body {
+        cursor: auto;
+    }
+
+    .task-card:hover {
+        transform: none;
+        /* Disable hover tilt on touch */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+    }
+}

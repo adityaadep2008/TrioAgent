@@ -15,6 +15,8 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard-premium.css">
+    <link rel="stylesheet" href="dashboard-responsive.css">
 
     <!-- GSAP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -26,21 +28,27 @@
 </head>
 
 <body class="dashboard-body">
-    <div class="cursor-dot"></div>
-    <div class="cursor-outline"></div>
+
 
     <div class="dashboard-container">
+        <!-- Ambient Background -->
+        <div id="ambient-bg"></div>
+
         <header class="dashboard-header">
             <div class="header-left">
                 <a href="index.html" class="back-link">
-                    <i data-feather="arrow-left"></i> Back to Agents
+                    <span class="link-arrow">←</span> BACK TO BASE
                 </a>
-                <h1>Mission Control</h1>
+            </div>
+            <div class="header-center">
+                <h1>MISSION CONTROL</h1>
+                <div class="header-line"></div>
             </div>
             <div class="header-right">
                 <div class="status-indicator">
+                    <span class="status-text">SYSTEM STATUS</span>
                     <span class="status-dot pulse"></span>
-                    <span id="connection-status">Live Uplink</span>
+                    <span id="connection-status" class="status-val">ONLINE</span>
                 </div>
             </div>
         </header>
@@ -48,12 +56,13 @@
         <main class="dashboard-content">
             <!-- Active Tasks Grid -->
             <section class="tasks-section">
-                <h2>Active Operations</h2>
+                <!-- <h2>Active Operations</h2> Removed for cleaner look -->
                 <div id="tasks-grid" class="tasks-grid">
                     <!-- Dynamic Task Cards will appear here -->
                     <div class="empty-state">
-                        <i data-feather="activity" class="empty-icon"></i>
-                        <p>No active missions. Deploy an agent to see data here.</p>
+                        <div class="empty-visual"></div>
+                        <p>AWAITING MISSION PROTOCOLS</p>
+                        <span class="sub-empty">Deploy an agent to initialize data stream</span>
                     </div>
                 </div>
             </section>

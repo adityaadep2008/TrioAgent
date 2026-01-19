@@ -9,8 +9,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Italiana&family=Outfit:wght@300;400;500;600&display=swap"
         rel="stylesheet">
 
     <!-- CSS -->
@@ -25,8 +24,7 @@
 </head>
 
 <body>
-    <div class="cursor-dot"></div>
-    <div class="cursor-outline"></div>
+
 
     <!-- Preloader -->
     <div class="preloader">
@@ -117,7 +115,7 @@
                     <div class="form-content hidden" id="form-patient">
                         <div class="input-group">
                             <label for="medicine-name" class="input-label">Prescription</label>
-                            <input type="text" id="medicine-name" placeholder="e.g. Dolo 650" class="input-field">
+                            <input type="text" id="medicine-name" placeholder="e.g. Dolo 650" class="styled-input">
                         </div>
                     </div>
 
@@ -125,13 +123,13 @@
                     <div id="form-coordinator" class="form-content hidden">
                         <div class="input-group">
                             <label class="input-label">Event Name</label>
-                            <input type="text" id="event-name" placeholder="Birthday Bash" class="input-field">
+                            <input type="text" id="event-name" placeholder="Birthday Bash" class="styled-input">
                         </div>
                         <div class="input-group">
                             <label class="input-label">Guest (Demo)</label>
-                            <input type="text" id="guest-name" placeholder="Name" class="input-field"
+                            <input type="text" id="guest-name" placeholder="Name" class="styled-input"
                                 style="margin-bottom: 10px;">
-                            <input type="text" id="guest-phone" placeholder="Phone" class="input-field">
+                            <input type="text" id="guest-phone" placeholder="Phone" class="styled-input">
                         </div>
                     </div>
 
@@ -153,52 +151,49 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Traveller Form (Moved INSIDE) -->
+                    <div id="form-traveller" class="form-content hidden">
+                        <div class="input-group">
+                            <label class="input-label">Source</label>
+                            <input type="text" id="trip-source" placeholder="e.g. New Delhi" class="styled-input">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Destination</label>
+                            <input type="text" id="trip-dest" placeholder="e.g. Goa" class="styled-input">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Date (YYYY-MM-DD)</label>
+                            <input type="text" id="trip-date" placeholder="2023-11-15" class="styled-input">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Interests</label>
+                            <input type="text" id="trip-interests" placeholder="Beaches, Parties, Food"
+                                class="styled-input">
+                        </div>
+                    </div>
                 </div>
-        </div>
 
-        <!-- Traveller Form -->
-        <div id="form-traveller" class="form-content hidden">
-            <div class="input-group">
-                <label class="input-label">Source</label>
-                <input type="text" id="trip-source" placeholder="e.g. New Delhi" class="input-field">
-            </div>
-            <div class="input-group">
-                <label class="input-label">Destination</label>
-                <input type="text" id="trip-dest" placeholder="e.g. Goa" class="input-field">
-            </div>
-            <div class="input-group">
-                <label class="input-label">Date (YYYY-MM-DD)</label>
-                <input type="text" id="trip-date" placeholder="2023-11-15" class="input-field">
-            </div>
-            <div class="input-group">
-                <label class="input-label">Interests</label>
-                <input type="text" id="trip-interests" placeholder="Beaches, Parties, Food" class="input-field">
-            </div>
-        </div>
-        </div>
+                <!-- Action Button (Correctly Placed in Flow) -->
+                <div class="action-wrapper" style="flex-direction: column; align-items: center; gap: 1rem;">
+                    <button id="find-deal-btn" class="cta-button">
+                        <span class="btn-text">Find Best Deal</span>
+                        <div class="btn-fill"></div>
+                    </button>
 
-        <!-- Action Button -->
-        <div class="action-wrapper" style="flex-direction: column; align-items: center; gap: 1rem;">
-            <button id="find-deal-btn" class="cta-button">
-                <span class="btn-text">Find Best Deal</span>
-                <div class="btn-fill"></div>
-            </button>
+                    <a href="dashboard.html" class="dashboard-link"
+                        style="text-decoration: none; color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.3s;">
+                        Go to Mission Control &rarr;
+                    </a>
+                </div>
 
-            <a href="dashboard.html" class="dashboard-link"
-                style="text-decoration: none; color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.3s;">
-                Go to Mission Control &rarr;
-            </a>
-        </div>
-
-        <!-- Result Display -->
-        <div id="result-panel" class="result-panel hidden">
-            <h3 class="result-title">Task Complete</h3>
-            <p id="result-message" class="result-message">Waiting...</p>
-            <div id="result-details" class="result-details"></div>
-        </div>
-        </section>
-
-        </section>
+                <!-- Result Display (Correctly Placed) -->
+                <div id="result-panel" class="result-panel hidden">
+                    <h3 class="result-title">Task Complete</h3>
+                    <p id="result-message" class="result-message">Waiting...</p>
+                    <div id="result-details" class="result-details"></div>
+                </div>
+            </section>
         </div>
         <!-- Live Status Log (Removed from UI) -->
     </main>

@@ -4,8 +4,8 @@
     --text-secondary: #888888;
     --accent-color: #0044ff;
     --border-color: #e6e6e6;
-    --font-heading: 'Bodoni Moda', serif;
-    --font-body: 'Space Grotesk', sans-serif;
+    --font-heading: 'Italiana', serif;
+    --font-body: 'Outfit', sans-serif;
     --easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -34,27 +34,7 @@ body {
     align-items: center;
 }
 
-/* Custom Cursor */
-.cursor-dot {
-    width: 6px;
-    height: 6px;
-    background-color: var(--text-primary);
-    border-radius: 50%;
-    position: fixed;
-    pointer-events: none;
-    z-index: 9999;
-}
 
-.cursor-outline {
-    width: 50px;
-    height: 50px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 50%;
-    position: fixed;
-    pointer-events: none;
-    z-index: 9999;
-    transition: width 0.3s, height 0.3s, background-color 0.3s;
-}
 
 /* Container */
 .app-container {
@@ -77,9 +57,10 @@ body {
 @media (min-width: 1024px) {
     .layout-grid {
         display: grid;
-        grid-template-columns: 0.8fr 1.2fr;
-        /* 40% Left, 60% Right */
-        gap: 6rem;
+        grid-template-columns: 0.6fr 1.4fr;
+        /* 30% Left, 70% Right */
+        gap: 4rem;
+        /* Reduced gap */
         align-items: center;
     }
 }
@@ -93,10 +74,11 @@ body {
 
 .hero-title {
     font-family: var(--font-heading);
-    font-weight: 800;
+    font-weight: 400;
+    /* Italiana is naturally bold enough, keeping it regular for elegance */
     /* Bolder */
-    font-size: clamp(3.5rem, 9vw, 11rem);
-    /* Increased slightly for Bodoni's elegance */
+    font-size: clamp(2.5rem, 7vw, 9rem);
+    /* Lowered min to 2.5rem for small phones */
     text-transform: uppercase;
     line-height: 0.85;
     /* Tighter leading for serif headings */
@@ -139,6 +121,20 @@ body {
         border-top: 1px solid var(--border-color);
         padding-top: 3rem;
     }
+
+    /* Center Align Heading on Mobile/Tablet */
+    .hero-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        width: 100%;
+    }
+
+    .hero-subtitle {
+        justify-content: center;
+        /* Center the flex row (text + line) */
+    }
 }
 
 @media (max-width: 768px) {
@@ -151,10 +147,18 @@ body {
         font-size: 1.5rem;
     }
 
+    /* Mobile Button Padding Fix */
+    .action-wrapper {
+        padding: 0 1rem;
+        /* Ensure side spacing */
+    }
+
     .cta-button {
         width: 100%;
-        /* Full width button on mobile */
+        max-width: 350px;
+        /* Prevent being absurdly wide */
         padding: 1.2rem;
+        font-size: 0.9rem;
     }
 }
 
@@ -315,21 +319,26 @@ body {
 .styled-input:focus {
     outline: none;
     border-bottom-color: var(--text-primary);
-    padding-left: 20px;
-    /* Subtle movement on focus */
+    padding-left: 30px;
+    /* Increased movement for drama */
+    letter-spacing: 0.02em;
 }
 
 .styled-input::placeholder {
-    color: #d1d1d1;
+    color: rgba(18, 18, 18, 0.2);
+    /* Much lighter, more elegant */
     font-weight: 300;
+    font-style: italic;
+    /* Luxury touch */
 }
 
 /* Button */
 .action-wrapper {
-    margin-top: 2rem;
+    /* margin-top removed, relying on interaction-area gap */
     display: flex;
     justify-content: center;
     /* Centered */
+    width: 100%;
 }
 
 .cta-button {
