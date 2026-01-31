@@ -108,18 +108,20 @@ class TaskPayload(BaseModel):
     drop: str = None
     preference: str = "cab" # auto, cab, sedan
     
-    medicine: str = None
+    # For Patient: List of {name, qty}
+    medicine: Any = [] 
     # For Foodie
     food_item: str = None
     action: str = "search" # 'search' or 'order'
-    # For Coordinator
+    # For Coordinator: List of names (str)
     event_name: str = None
-    guest_list: list = [] # [{'name':..., 'phone':...}]
+    guest_list: List[str] = [] 
     
     # For Traveller
     source: str = None
     destination: str = None
     date: str = None
+    end_date: str = None  # Added
     user_interests: str = None
     
 @app.get("/")
@@ -198,16 +200,6 @@ async def run_agent_task(payload: TaskPayload):
                 await log_and_broadcast(task_id, f"Initiating Autonomous Booking Sequence to {payload.drop}...")
                 
                 # Use book_cheapest_ride which handles logic internally
-                # Note: We need to ensure book_cheapest_ride respects preference if possible, 
-                # but currently it just compares all. Let's assume we update agent to respect it or just run generic.
-                # Ideally pass preference to book_cheapest_ride.
-                
-                # NOTE: The agent's book_cheapest_ride signature is (pickup, drop).
-                # We might need to update agent later. For now, calling as is.
-                # Actually, strictly speaking we should pass preference to compare_rides called inside it.
-                # Let's pass it if we can, or just call execute_task directly if we knew the app.
-                # Best approach: Call agent.book_cheapest_ride(pickup, drop, preference) -> Update Agent next.
-                
                 booking_res = await agent.book_cheapest_ride(payload.pickup, payload.drop, payload.preference)
                 
                 if booking_res and booking_res.get('status') == 'success':
@@ -251,7 +243,9 @@ async def run_agent_task(payload: TaskPayload):
             
         elif payload.persona == "patient":
             agent = PharmacyAgent(model="models/gemini-2.5-flash")
-            await log_and_broadcast(task_id, f"Searching for medicine: {payload.medicine}...")
+            await log_and_broadcast(task_id, f"Searching for medicines: {len(payload.medicine) if isinstance(payload.medicine, list) else 1} items...")
+            
+            # Now passing list of dicts directly
             full_res = await agent.compare_prices(payload.medicine, "patient")
             result = full_res.get('best_option', {"status": "failed"})
 
@@ -306,8 +300,14 @@ async def run_agent_task(payload: TaskPayload):
         elif payload.persona == "coordinator":
             agent = EventCoordinatorAgent(model="models/gemini-2.5-flash")
             await log_and_broadcast(task_id, f"🎪 Orchestrating Event: {payload.event_name}")
-            logistics = [] 
-            await agent.orchestrate_event(payload.event_name, payload.guest_list, logistics)
+            
+            # Passing list of strings directly to organize_event
+            await agent.organize_event(payload.guest_list, {
+                "name": payload.event_name,
+                "date": "TBD", 
+                "location": "TBD",
+                "time": "Evening"
+            })
             result = {"status": "success", "message": "Event Orchestration Complete"}
 
         elif payload.persona == "traveller":
@@ -316,10 +316,20 @@ async def run_agent_task(payload: TaskPayload):
             transit_agent = TransitManager()
             stay_agent = StayManager()
             
-            # 1. Flight
-            await log_and_broadcast(task_id, f"Searching flights from {payload.source} to {payload.destination}...")
+            # 1. Flight (Outbound)
+            await log_and_broadcast(task_id, f"Searching OUTBOUND flight from {payload.source} to {payload.destination}...")
             flight = await transit_agent.find_best_flight(payload.source, payload.destination, payload.date)
-            await log_and_broadcast(task_id, f"✅ Flight Found: {flight.airline} {flight.flight_number} ({flight.arrival_time})")
+            await log_and_broadcast(task_id, f"✅ Outbound Found: {flight.airline} ({flight.price})")
+            
+            # Flight (Return) - Optional
+            return_flight = None
+            if payload.end_date:
+                await log_and_broadcast(task_id, f"Searching RETURN flight from {payload.destination} to {payload.source} on {payload.end_date}...")
+                try:
+                    return_flight = await transit_agent.find_best_flight(payload.destination, payload.source, payload.end_date)
+                    await log_and_broadcast(task_id, f"✅ Return Found: {return_flight.airline} ({return_flight.price})")
+                except Exception as e:
+                    await log_and_broadcast(task_id, f"⚠️ Return flight search failed: {e}")
             
             # 2. Cab
             await log_and_broadcast(task_id, f"Booking cab for arrival at {flight.arrival_time}...")
@@ -349,7 +359,11 @@ async def run_agent_task(payload: TaskPayload):
             mermaid_code = TripVisualizer.generate_mermaid(full_plan)
             full_plan.flowchart_code = mermaid_code
             
-            result = full_plan.dict()
+            result_dict = full_plan.dict()
+            if return_flight:
+                result_dict['return_flight'] = return_flight.dict()
+            
+            result = result_dict
             status = "success"
             msg = f"Trip to {payload.destination} is ready!"
 

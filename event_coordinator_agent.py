@@ -155,8 +155,11 @@ class EventCoordinatorAgent:
     
     # ... (research_item logic remains same)
 
-    async def organize_event(self, contacts_str, event_details):
-        contacts = [c.strip() for c in contacts_str.split(",")]
+    async def organize_event(self, contacts_input, event_details):
+        if isinstance(contacts_input, list):
+            contacts = contacts_input
+        else:
+            contacts = [c.strip() for c in contacts_input.split(",")]
         
         invite_msg = (
             f"Hi! Invited to {event_details['name']} on {event_details['date']}. "
@@ -298,8 +301,11 @@ class EventCoordinatorAgent:
             "platform_data": results # Saving raw data too
         }
 
-    async def organize_event(self, contacts_str, event_details):
-        contacts = [c.strip() for c in contacts_str.split(",")]
+    async def organize_event(self, contacts_input, event_details):
+        if isinstance(contacts_input, list):
+            contacts = contacts_input
+        else:
+            contacts = [c.strip() for c in contacts_input.split(",")]
         
         invite_msg = (
             f"Hi! Invited to {event_details['name']} on {event_details['date']}. "

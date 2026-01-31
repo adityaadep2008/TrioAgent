@@ -277,6 +277,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Dynamic Input Handlers ---
+
+    // Add Guest
+    // --- Dynamic Input Handlers (Event Delegation) ---
+    document.addEventListener('click', (e) => {
+        // Add Guest (Use closest to catch clicks on children if any)
+        if (e.target.closest('#add-guest-btn')) {
+            console.log("Add Guest Clicked");
+            const guestListContainer = document.getElementById('guest-list-container');
+            if (guestListContainer) {
+                const div = document.createElement('div');
+                div.className = 'guest-item';
+                div.style.marginBottom = '10px';
+                div.innerHTML = `<input type="text" class="styled-input guest-name" placeholder="Guest Name (as in Contacts)">`;
+                guestListContainer.appendChild(div);
+
+                // Animate in
+                if (window.gsap) gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
+            }
+        }
+
+        // Add Medicine
+        if (e.target.closest('#add-medicine-btn')) {
+            console.log("Add Medicine Clicked");
+            const medListContainer = document.getElementById('medicine-list-container');
+            if (medListContainer) {
+                const div = document.createElement('div');
+                div.className = 'input-group medicine-item';
+                div.style.display = 'flex';
+                div.style.gap = '10px';
+                div.style.marginBottom = '10px';
+                div.innerHTML = `
+                    <input type="text" class="styled-input med-name" placeholder="Medicine Name" style="flex: 2;">
+                    <input type="number" class="styled-input med-qty" placeholder="Qty" style="flex: 1;" value="1">
+                `;
+                medListContainer.appendChild(div);
+
+                // Animate in
+                if (window.gsap) gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
+            }
+        }
+    });
+
     // API & WebSocket Interaction
     findDealBtn.addEventListener('click', async () => {
         const persona = hiddenInput.value;
@@ -308,15 +351,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else if (persona === 'patient') {
-            payload.medicine = document.getElementById('medicine-name').value;
+            // Collect Medicines
+            const medItems = document.querySelectorAll('.medicine-item');
+            const medList = [];
+            medItems.forEach(item => {
+                const name = item.querySelector('.med-name').value;
+                const qty = item.querySelector('.med-qty').value;
+                if (name) {
+                    medList.push({ name: name, qty: parseInt(qty) || 1 });
+                }
+            });
+            payload.medicine = medList; // Now Sending List[Dict]
+
         } else if (persona === 'coordinator') {
             payload.event_name = document.getElementById('event-name').value;
-            // Simple logic for single guest demo
-            const gName = document.getElementById('guest-name').value;
-            const gPhone = document.getElementById('guest-phone').value;
-            if (gName) {
-                payload.guest_list = [{ name: gName, phone: gPhone }];
-            }
+
+            // Collect Guests
+            const guestItems = document.querySelectorAll('.guest-name');
+            const guestList = [];
+            guestItems.forEach(input => {
+                if (input.value) {
+                    guestList.push(input.value);
+                }
+            });
+            payload.guest_list = guestList; // Now Sending List[str]
+
         } else if (persona === 'foodie') {
             payload.food_item = document.getElementById('food-item').value;
             // Toggle Logic
@@ -326,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             payload.source = document.getElementById('trip-source').value;
             payload.destination = document.getElementById('trip-dest').value;
             payload.date = document.getElementById('trip-date').value;
+            payload.end_date = document.getElementById('trip-end-date').value; // New Field
             payload.user_interests = document.getElementById('trip-interests').value;
         }
 

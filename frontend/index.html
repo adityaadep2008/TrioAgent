@@ -32,6 +32,9 @@
         <div class="preloader-overlay"></div>
     </div>
 
+    <!-- Visual Debug Console -->
+    <div id="debug-console" style="display:none;"></div>
+
     <main class="app-container">
         <div class="layout-grid">
             <header class="hero-section">
@@ -113,10 +116,18 @@
 
                     <!-- Patient Form -->
                     <div class="form-content hidden" id="form-patient">
-                        <div class="input-group">
-                            <label for="medicine-name" class="input-label">Prescription</label>
-                            <input type="text" id="medicine-name" placeholder="e.g. Dolo 650" class="styled-input">
+                        <label class="input-label">Prescription List</label>
+                        <div id="medicine-list-container">
+                            <div class="input-group medicine-item"
+                                style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <input type="text" class="styled-input med-name"
+                                    placeholder="Medicine Name (e.g. Dolo 650)" style="flex: 2;">
+                                <input type="number" class="styled-input med-qty" placeholder="Qty" style="flex: 1;"
+                                    value="1">
+                            </div>
                         </div>
+                        <button type="button" id="add-medicine-btn" class="secondary-button"
+                            style="margin-top: 5px; font-size: 0.8rem;">+ Add Medicine</button>
                     </div>
 
                     <!-- Coordinator Form -->
@@ -126,10 +137,15 @@
                             <input type="text" id="event-name" placeholder="Birthday Bash" class="styled-input">
                         </div>
                         <div class="input-group">
-                            <label class="input-label">Guest (Demo)</label>
-                            <input type="text" id="guest-name" placeholder="Name" class="styled-input"
-                                style="margin-bottom: 10px;">
-                            <input type="text" id="guest-phone" placeholder="Phone" class="styled-input">
+                            <label class="input-label">Guest List</label>
+                            <div id="guest-list-container">
+                                <div class="guest-item" style="margin-bottom: 10px;">
+                                    <input type="text" class="styled-input guest-name"
+                                        placeholder="Guest Name (as in Contacts)">
+                                </div>
+                            </div>
+                            <button type="button" id="add-guest-btn" class="secondary-button"
+                                style="margin-top: 5px; font-size: 0.8rem;">+ Add Guest</button>
                         </div>
                     </div>
 
@@ -162,9 +178,15 @@
                             <label class="input-label">Destination</label>
                             <input type="text" id="trip-dest" placeholder="e.g. Goa" class="styled-input">
                         </div>
-                        <div class="input-group">
-                            <label class="input-label">Date (YYYY-MM-DD)</label>
-                            <input type="text" id="trip-date" placeholder="2023-11-15" class="styled-input">
+                        <div class="input-group" style="display: flex; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label class="input-label">Start Date</label>
+                                <input type="text" id="trip-date" placeholder="YYYY-MM-DD" class="styled-input">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="input-label">End Date</label>
+                                <input type="text" id="trip-end-date" placeholder="YYYY-MM-DD" class="styled-input">
+                            </div>
                         </div>
                         <div class="input-group">
                             <label class="input-label">Interests</label>

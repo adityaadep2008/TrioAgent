@@ -131,7 +131,7 @@ class PharmacyAgent:
             print(f"[Error] Task Execution Failed for {app_name}: {e}")
             return result_data
 
-    async def compare_prices(self, meds_str, role, apps_filter=None):
+    async def compare_prices(self, meds_input, role, apps_filter=None):
         all_apps = ["Apollo 24|7", "Tata 1mg"]
         
         if apps_filter:
@@ -149,13 +149,23 @@ class PharmacyAgent:
         else:
             apps = all_apps
 
-        # Parse medicines: "Name:Qty, Name:Qty"
+        # Parse medicines
         med_list = []
-        for item in meds_str.split(','):
-            parts = item.strip().split(':')
-            name = parts[0].strip()
-            qty = int(parts[1].strip()) if len(parts) > 1 else 1
-            med_list.append({"name": name, "qty": qty})
+        if isinstance(meds_input, list):
+             # Expecting list of dicts: [{'name': '...', 'qty': ...}]
+             for item in meds_input:
+                 # Resilient handling if passed as list of strings (legacy) or dicts
+                 if isinstance(item, str):
+                     med_list.append({"name": item, "qty": 1})
+                 elif isinstance(item, dict):
+                     med_list.append(item)
+        else:
+            # String parsing
+            for item in meds_input.split(','):
+                parts = item.strip().split(':')
+                name = parts[0].strip()
+                qty = int(parts[1].strip()) if len(parts) > 1 else 1
+                med_list.append({"name": name, "qty": qty})
 
         print(f"\n[PharmaAgent] processing List: {med_list}")
         print(f"[PharmaAgent] Apps Selected: {apps}")
