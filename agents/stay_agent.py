@@ -78,10 +78,9 @@ class StayManager:
             f"6. Click the central 'SEARCH' button. "
             f"7. Wait 10 seconds for the hotel list. "
             f"8. **SCROLL DOWN** slightly to see hotel cards. "
-            f"9. **CLICK** on the first hotel card/image to open details. "
-            f"10. Wait for details page. "
-            f"11. Extract: Hotel Name, Address, Price Per Night. "
-            f"12. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
+            f"9. Identify the FIRST hotel card in the list. "
+            f"10. Extract directly from card: Hotel Name, Location/Address, Price Per Night. "
+            f"11. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
         )
         
         result = await self._run_agent(goal)

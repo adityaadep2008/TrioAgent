@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 try:
     from droidrun.agent.droid import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.tools import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found.")
     sys.exit(1)
@@ -44,13 +44,15 @@ class EventCoordinatorAgent:
         
         llm = load_llm(provider_name=provider_name, model=self.model, api_key=api_key)
         
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
-
-        agent = DroidAgent(goal=goal, llms=llm, config=config)
+        tools = await AdbTools.create()
+        
+        agent = DroidAgent(
+            goal=goal,
+            llm=llm,
+            tools=tools,
+            vision=True,
+            reasoning=False
+        )
         
         try:
             print(f"      🧠 Analyzing...")
@@ -101,17 +103,14 @@ class EventCoordinatorAgent:
         
         # Linear Goal: Step-by-step Execution
         goal = (
-            f"1. Open '{app_name}'. "
-            f"2. IF you see a 'Back' button (arrow) at the top left, Click it to return to the contact list. "
-            f"3. Click the 'Search' icon. "
-            f"4. Click the 'Search...' input field at the top to ensure it is focused. "
-            f"5. Type '{contact_name}' in the search bar. "
-            f"6. Wait for the result '{contact_name}' to appear in the list below. "
-            f"7. Click the contact found. "
-            f"8. Type '{message}' in the message box. "
-            f"9. Click the Send button. "
-            f"10. Return strict JSON: {{'status': 'success'}}. "
-            f"CRITICAL: Do NOT read any messages. Just send and exit."
+            f"Open '{app_name}'. "
+            f"Navigate to the main Contact List or Search screen (if you see a Back button, press it). "
+            f"Search for the contact '{contact_name}' by clicking the search icon and typing the name. "
+            f"Tap the correct contact from the results list to open the chat. "
+            f"Type the message '{message}' in the text box. "
+            f"Click the Send button. "
+            f"Return a strict JSON object: {{'status': 'success'}}. "
+            f"Do NOT read previous messages."
         )
         return await self._run_agent(goal)
 
@@ -420,6 +419,6 @@ async def main():
     await agent.organize_event(args.contacts, details)
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

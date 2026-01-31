@@ -23,23 +23,62 @@ DroidRun Auto is a cutting-edge autonomous agent framework capable of executing 
 
 ## 🛠️ Architecture
 
-The system is built with a modular "Persona" architecture:
-*   **Backend**: FastAPI server with WebSocket support for real-time status broadcasting.
-*   **Frontend**: A sleek, GSAP-animated web interface for selecting personas and monitoring tasks.
-*   **Agents**: specialized Python classes (`CommerceAgent`, `EventCoordinatorAgent`, etc.) wrapping DroidRun logic.
-*   **Vision & Reasoning**: Uses screen parsing (Vision) to interact with non-API-enabled mobile apps natively.
+The system is built with a modular "Persona" / "Brain & Senses" architecture:
+
+### 1. The Brain (Backend & Agents)
+-   **FastAPI Server (`server.py`)**: The central nervous system. It manages agent lifecycles, maintains a real-time task history, and broadcasts status updates via WebSockets.
+-   **Agents (`commerce_agent.py`, etc.)**: Specialized Python classes that encapsulate logic for different domains. They utilize the `DroidRun` framework to "reason" about what to do next based on the user's goal.
+-   **Gemini 2.5 Flash**: The cognitive engine. It analyzes screen content (Vision) and decides which UI elements to interact with.
+
+### 2. The Senses (DroidRun & ADB)
+-   **DroidRun Framework**: Acts as the bridge between the Python agents and the Android device. It translates high-level goals (e.g., "Order Pizza") into low-level ADB commands.
+-   **ADB (Android Debug Bridge)**: The physical/digital link. It captures screenshots for the AI to "see" and injects touch/text events for the AI to "act".
+-   **Device Portal**: A lightweight on-device service (initialized via `droidrun setup`) that assists with accessibility and screen coordinate mapping.
+
+### 3. The Face (Frontend)
+-   **Web UI**: A responsive, GSAP-enhanced interface (running on port 8081) that allows users to issue commands and watch the agents work in real-time.
 
 ---
 
-## 📦 Installation
+## 📦 Installation & Setup Guide
 
 ### Prerequisites
-1.  **Android Phone** enabled with USB Debugging connected to PC.
-2.  **Python 3.10+** installed.
-3.  **ADB (Android Debug Bridge)** installed and available in PATH.
-4.  **Google Gemini API Key**.
+1.  **Android Phone**: Must have **Developer Options** and **USB Debugging** enabled.
+2.  **Python 3.10+**: Required for the backend.
+3.  **ADB Installed**: Available in your system PATH.
+4.  **Google Gemini API Key**: For the AI model.
 
-### Setup
+### 🔌 Step 1: Device Setup (Critical)
+
+1.  **Enable Developer Options**:
+    -   Go to **Settings** > **About Phone**.
+    -   Tap **Build Number** 7 times until you see "You are a developer".
+    -   Go back to **System** > **Developer Options**.
+    -   Enable **USB Debugging**.
+
+2.  **Connect via ADB**:
+    -   **USB**: Connect your phone to PC. A popup "Allow USB Debugging?" will appear on phone. Check "Always allow" and tap **Allow**.
+    -   **Wireless**:
+        -   Enable "Wireless Debugging" in Developer Options.
+        -   Run `adb pair [ip]:[port]` (using code from "Pair device with pairing code").
+        -   Run `adb connect [ip]:[port]`.
+
+3.  **Verify Connection**:
+    ```bash
+    adb devices
+    ```
+    *Ensure your device is listed as `device` (not `unauthorized`).*
+
+4.  **Initialize DroidRun**:
+    Open a terminal and run:
+    ```bash
+    droidrun setup
+    ```
+    -   This will install the necessary helper services on your phone.
+    -   **IMPORTANT**: Watch your phone screen! You must grant **Accessibility Permissions** and **Screen Recording Permissions** when prompted by the DroidRun app.
+
+### 💻 Step 2: Project Setup
+
 1.  **Clone the Repository**:
     ```bash
     git clone https://github.com/your-username/devrunauto.git
@@ -62,39 +101,35 @@ The system is built with a modular "Persona" architecture:
 
 ## 🚦 Usage
 
-### 1. Start the System (Recommended)
-Run the all-in-one launcher (if available) or start manually:
-
-**Backend (Terminal 1):**
+### 1. Start the Backend
+Open a terminal in the root `devrunauto` folder:
 ```bash
 python server.py
 ```
+*You should see "DroidRun Server Running" logs.*
 
-**Frontend (Terminal 2):**
+### 2. Start the Frontend
+Open a **new** terminal, navigate to `frontend`, and start a simple server:
 ```bash
 cd frontend
 python -m http.server 8081
 ```
 
-### 2. Access the Interface
-Open your browser and navigate to: `http://localhost:8081`
-
-### 3. Select a Persona
-*   **Shopper**: Enter a product name (e.g., "Nike Shoes") -> Watch it compare prices.
-*   **Food Order (Foodie)**:
-    *   Enter a craving (e.g., "Chicken Biryani").
-    *   **Toggle Switch**:
-        *   *Find Best Deal*: Safe mode. Scans apps and tells you the cheapest price.
-        *   *Autonomous Order*: **DANGER ZONE**. Will actually add to cart and place a COD order.
+### 3. Run the App
+-   Open your browser to: `http://localhost:8081`
+-   Select a **Persona** (e.g., Foodie).
+-   Enter your query (e.g., "Pizza").
+-   Click **Start**.
+-   **Watch your phone!** The agent will physically open apps and start working.
 
 ---
 
 ## 📂 Project Structure
 
-*   `server.py`: Main FastAPI entry point and WebSocket manager.
-*   `commerce_agent.py`: Logic for Shopping and Food Ordering (Swiggy/Zomato).
-*   `event_coordinator_agent.py`: Complex logic for WhatsApp coordination and event planning.
-*   `frontend/`: HTML/CSS/JS files for the web UI.
+*   `server.py`: Main backend server.
+*   `commerce_agent.py`: Agent logic for Shopping/Food.
+*   `ride_comparison_agent.py`: Agent logic for Rides.
+*   `frontend/`: Web interface files.
 *   `requirements.txt`: Python dependencies.
 
 ---

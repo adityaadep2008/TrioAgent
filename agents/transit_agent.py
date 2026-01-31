@@ -78,10 +78,9 @@ class TransitManager:
             f"7. Click 'Search Flights'. "
             f"8. Wait 10 seconds for results to fully load. "
             f"9. **SCROLL DOWN** slowly to ensure flight cards are rendered. "
-            f"10. **CLICK** on the FIRST visible flight card to expand details. "
-            f"11. Wait for the details view. "
-            f"12. Extract: Airline Name, Flight Number, Price, and ARRIVAL Time. "
-            f"13. Return strict JSON: {{'airline': '...', 'flight_number': '...', 'price': '...', 'arrival_time': 'YYYY-MM-DD HH:MM:SS'}}."
+            f"10. Identify the FIRST flight card in the list. "
+            f"11. Extract directly from the card: Airline Name, Flight Number (if visible, else 'N/A'), Price, and ARRIVAL Time. "
+            f"12. Return strict JSON: {{'airline': '...', 'flight_number': '...', 'price': '...', 'arrival_time': 'YYYY-MM-DD HH:MM:SS'}}."
         )
         
         result = await self._run_agent(goal)

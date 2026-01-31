@@ -36,7 +36,7 @@
 
         <header class="dashboard-header">
             <div class="header-left">
-                <a href="index.html" class="back-link">
+                <a href="/" class="back-link">
                     <span class="link-arrow">←</span> BACK TO BASE
                 </a>
             </div>
@@ -77,26 +77,32 @@
                     <h3 id="modal-title">Operation Details</h3>
                     <span id="modal-id" class="modal-subtitle">ID: --</span>
                 </div>
+                <!-- Status Badge moved here -->
+                <span class="badge" id="modal-status">RUNNING</span>
                 <button id="close-modal" class="close-btn"><i data-feather="x"></i></button>
             </div>
 
+            <!-- Tabs -->
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="plan">Trip Plan</button>
+                <button class="tab-btn" data-tab="logs">System Logs</button>
+            </div>
+
             <div class="modal-body">
-                <div class="log-console">
-                    <div class="console-header">
-                        <span><i data-feather="terminal"></i> System Logs</span>
-                        <div class="console-actions">
-                            <span class="badge" id="modal-status">RUNNING</span>
-                        </div>
-                    </div>
-                    <div id="console-output" class="console-output">
-                        <!-- Logs go here -->
-                        <div class="log-line system">> Initializing view...</div>
+                <!-- Trip Plan View -->
+                <div id="view-plan" class="tab-view active">
+                    <div id="result-area" class="result-area">
+                        <div id="result-json"></div> <!-- Dynamic Content Here -->
                     </div>
                 </div>
 
-                <div id="result-area" class="result-area hidden">
-                    <h4>Mission Outcome</h4>
-                    <pre id="result-json">{}</pre>
+                <!-- System Logs View -->
+                <div id="view-logs" class="tab-view">
+                    <div class="log-console">
+                        <div id="console-output" class="console-output">
+                            <div class="log-line system">> Initializing view...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -262,7 +262,75 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    /* Changed to center for badge alignment */
+}
+
+/* Tabs */
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: #fafafa;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #999;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn:hover {
+    color: #000;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.tab-btn.active {
+    color: #000;
+    border-bottom-color: #000;
+    background: #fff;
+}
+
+.modal-body {
+    flex: 1;
+    overflow: hidden;
+    /* Manage scroll inside tabs */
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-view {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+    padding: 2rem;
+    /* Content padding */
+}
+
+.tab-view.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .modal-header h3 {

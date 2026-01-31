@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 try:
     from droidrun.agent.droid import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.tools import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
     print("Please ensure you have installed it: pip install droidrun")
@@ -78,23 +78,14 @@ class PharmacyAgent:
             api_key=api_key
         )
 
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(
-            reasoning=True,
-            manager=manager_config,
-            executor=executor_config
-        )
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(
-            agent=agent_config,
-            telemetry=telemetry_config
-        )
+        tools = await AdbTools.create()
 
         agent = DroidAgent(
             goal=goal,
-            llms=llm,
-            config=config
+            llm=llm,
+            tools=tools,
+            vision=True,
+            reasoning=False
         )
 
         result_data = {"app": app_name, "medicine": medicine, "status": "failed", "data": {}, "numeric_price": float('inf')}
@@ -141,7 +132,7 @@ class PharmacyAgent:
             return result_data
 
     async def compare_prices(self, meds_str, role, apps_filter=None):
-        all_apps = ["PharmEasy", "Apollo 24|7", "Tata 1mg"]
+        all_apps = ["Apollo 24|7", "Tata 1mg"]
         
         if apps_filter:
             # Filter logic: simple case-insensitive partial match
@@ -245,6 +236,6 @@ async def main():
     await agent.compare_prices(args.meds, args.role, apps_filter)
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

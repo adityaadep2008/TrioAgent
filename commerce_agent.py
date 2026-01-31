@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # --- DroidRun Professional Architecture Imports ---
 try:
     from droidrun.agent.droid import DroidAgent
-    from droidrun.config_manager import DroidrunConfig
+    from droidrun.tools import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
     print("Please ensure you have installed it: pip install droidrun")
@@ -96,10 +96,10 @@ class CommerceAgent:
             )
 
         # 2. Configure Agent (Professional Pattern)
+        # 2. Configure Agent (Professional Pattern)
         # Using load_llm to avoid DroidrunConfig error
         from droidrun.agent.utils.llm_picker import load_llm
-        from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
-        
+
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         llm = load_llm(
             provider_name="GoogleGenAI",
@@ -107,29 +107,17 @@ class CommerceAgent:
             api_key=api_key
         )
 
-        # Create properly typed config
-        # Enable vision for Manager (planning) and Executor (acting)
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
+        # Create tools instance
+        tools = await AdbTools.create()
         
-        agent_config = AgentConfig(
-            reasoning=True,
-            manager=manager_config,
-            executor=executor_config
-        )
-        
-        # Disable telemetry to avoid "multiple values for distinct_id" error
-        telemetry_config = TelemetryConfig(enabled=False)
-        
-        config = DroidrunConfig(
-            agent=agent_config,
-            telemetry=telemetry_config
-        )
-
+        # Instantiate DroidAgent directly with required args for v0.3.2
+        # signature: (goal, llm, tools, personas, max_steps, timeout, vision, reasoning, reflection, ...)
         agent = DroidAgent(
             goal=goal,
-            llms=llm,
-            config=config,
+            llm=llm,
+            tools=tools,
+            vision=True,     # Enabled as per original intention
+            reasoning=False,  # AgentConfig had reasoning=True
         )
 
         # 3. Execute
@@ -280,6 +268,6 @@ async def main():
         print(json.dumps(results, indent=2))
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

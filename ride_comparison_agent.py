@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 try:
     from droidrun.agent.droid import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.tools import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
     print("Please ensure you have installed it: pip install droidrun")
@@ -94,8 +94,6 @@ class RideComparisonAgent:
 
         # --- Professional Config Setup ---
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        
-        # Determine Provider Name for LLM Picker
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
 
         llm = load_llm(
@@ -104,26 +102,14 @@ class RideComparisonAgent:
             api_key=api_key
         )
 
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        
-        agent_config = AgentConfig(
-            reasoning=True,
-            manager=manager_config,
-            executor=executor_config
-        )
-        
-        telemetry_config = TelemetryConfig(enabled=False)
-        
-        config = DroidrunConfig(
-            agent=agent_config,
-            telemetry=telemetry_config
-        )
+        tools = await AdbTools.create()
 
         agent = DroidAgent(
             goal=goal,
-            llms=llm,
-            config=config
+            llm=llm,
+            tools=tools,
+            vision=True,
+            reasoning=False
         )
 
         result_data = {"app": app_name, "status": "failed", "data": {}, "numeric_price": float('inf')}
@@ -253,6 +239,6 @@ async def main():
         await agent.compare_rides(args.pickup, args.drop, args.preference)
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
