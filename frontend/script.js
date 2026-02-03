@@ -14,8 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         traveller: document.getElementById('form-traveller')
     };
     const findDealBtn = document.getElementById('find-deal-btn');
-    const cursorDot = document.querySelector('.cursor-dot');
-    const cursorOutline = document.querySelector('.cursor-outline');
+
 
     // Lenis Smooth Scroll
     const lenis = new Lenis({
@@ -104,20 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // Custom Cursor
-    window.addEventListener('mousemove', (e) => {
-        const posX = e.clientX;
-        const posY = e.clientY;
 
-        cursorDot.style.left = `${posX}px`;
-        cursorDot.style.top = `${posY}px`;
-
-        // Smooth follow for outline
-        cursorOutline.animate({
-            left: `${posX - 20}px`,
-            top: `${posY - 20}px`
-        }, { duration: 500, fill: "forwards" });
-    });
 
     // Custom Dropdown Logic
     const dropdownTrigger = document.querySelector('.dropdown-trigger');
@@ -169,6 +155,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function switchForm(persona) {
+        // Dynamic Button Text
+        const btnText = findDealBtn.querySelector('.btn-text');
+        let newText = "Find Best Deal";
+
+        if (persona === 'traveller') {
+            newText = "Plan Best Trip";
+        } else if (persona === 'rider') {
+            newText = "Find Best Ride";
+        }
+
+        // Smooth Text Transition
+        if (btnText.textContent !== newText) {
+            gsap.to(btnText, {
+                duration: 0.2,
+                opacity: 0,
+                onComplete: () => {
+                    btnText.textContent = newText;
+                    gsap.to(btnText, { duration: 0.2, opacity: 1 });
+                }
+            });
+        }
+
         // Animate out current forms
         const currentVisible = formContainer.querySelector('.form-content:not(.hidden)');
         if (currentVisible) {

@@ -16,7 +16,7 @@ except ImportError:
 from schemas import HotelDetails, ItineraryDay, ItineraryActivity, FullTripPlan
 
 class StayManager:
-    def __init__(self, provider="gemini", model="models/gemini-1.5-flash"):
+    def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
         self.provider = provider
         self.model = model
         self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -30,14 +30,18 @@ class StayManager:
         print(f"🏨 Searching Hotel in {city} for {check_in_date}")
         
         goal = (
-            f"1. Open 'Booking.com'. "
-            f"2. Search for '{city}'. "
-            f"3. Set Check-in Date: '{check_in_date}'. "
-            f"4. Filter for '4 stars' or above if possible. "
-            f"5. specificy the number of adults as 1. "
-            f"6. Select the first relevant hotel. "
-            f"7. Extract: Hotel Name, Address, Price Per Night. "
-            f"8. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
+            f"1. Open 'MakeMyTrip'. "
+            f"2. Handle any Ads/Popups if they appear. "
+            f"3. Click on 'Hotels'. "
+            f"4. Enter Location/City: '{city}'. "
+            f"5. Select Check-in Date: '{check_in_date}'. "
+            f"6. Click the central 'SEARCH' button. "
+            f"7. Wait 10 seconds for the hotel list. "
+            f"8. **SCROLL DOWN** slightly to see hotel cards. "
+            f"9. **CLICK** on the first hotel card/image to open details. "
+            f"10. Wait for details page. "
+            f"11. Extract: Hotel Name, Address, Price Per Night. "
+            f"12. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
         )
         
         # Use Wrapper -> "Booking.com"

@@ -23,14 +23,18 @@ class TransitManager:
         
         goal = (
             f"1. Open 'MakeMyTrip'. "
-            f"2. Click on 'Flights'. "
-            f"3. Select 'One Way'. "
-            f"4. Enter From: '{source}' and To: '{dest}'. "
-            f"5. Select Date: '{date}'. "
-            f"6. Click 'Search Flights'. "
-            f"7. Wait for results. Find the first/best flight. "
-            f"8. Extract: Airline Name, Flight Number, Price, and STRICT Arrival Time (e.g., '2023-10-27 14:30:00'). "
-            f"9. Return strict JSON: {{'airline': '...', 'flight_number': '...', 'price': '...', 'arrival_time': 'YYYY-MM-DD HH:MM:SS'}}."
+            f"2. Handle any Ads/Popups if they appear (Click 'X' or 'Skip'). "
+            f"3. Click on 'Flights'. "
+            f"4. Select 'One Way'. "
+            f"5. Enter From: '{source}' and To: '{dest}'. "
+            f"6. Select Date: '{date}'. "
+            f"7. Click 'Search Flights'. "
+            f"8. Wait 10 seconds for results to fully load. "
+            f"9. **SCROLL DOWN** slowly to ensure flight cards are rendered. "
+            f"10. **CLICK** on the FIRST visible flight card to expand details. "
+            f"11. Wait for the details view. "
+            f"12. Extract: Airline Name, Flight Number, Price, and ARRIVAL Time. "
+            f"13. Return strict JSON: {{'airline': '...', 'flight_number': '...', 'price': '...', 'arrival_time': 'YYYY-MM-DD HH:MM:SS'}}."
         )
         
         # Use AgentFactory Smart Router
@@ -61,12 +65,14 @@ class TransitManager:
         print(f"🚖 Booking Cab from {location} for {pickup_str} (45 mins after arrival)")
         
         goal = (
-            f"1. Open 'Uber'. "
-            f"2. Click 'Ride' or enter destination. "
-            f"3. Set Pickup Location: '{location}' (Airport). "
-            f"4. Schedule a ride for {pickup_str}. "
-            f"5. Check correct price for 'Uber Go' or similar. "
-            f"6. Return strict JSON: {{'provider': 'Uber', 'pickup_time': '{pickup_time.strftime('%Y-%m-%d %H:%M:%S')}', 'estimated_price': '...'}}."
+            f"1. Open 'MakeMyTrip'. "
+            f"2. Click on 'Airport Cabs' or 'Cabs'. "
+            f"3. Select 'Airport Pick-up/Drop'. "
+            f"4. Enter Airport as Source, and '{location}' as Destination. "
+            f"5. Select Pickup Time: {pickup_str}. "
+            f"6. Click 'Search'. "
+            f"7. Select the cheapest/best cab option. "
+            f"8. Return strict JSON: {{'provider': 'MakeMyTrip Cabs', 'pickup_time': '{pickup_time.strftime('%Y-%m-%d %H:%M:%S')}', 'estimated_price': '...'}}."
         )
 
         # Use AgentFactory Smart Router

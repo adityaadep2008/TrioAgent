@@ -30,35 +30,50 @@ class TripVisualizer:
         
         # Let's constructs nodes based on available data.
         
-        # Flight Node
-        flight_node = f"Flight[Flight: {trip_plan.flight.airline} {trip_plan.flight.flight_number}]"
+        def sanitize(text):
+            if not text: return "Unknown"
+            # Keep line simple: Alphanumeric, spaces, colons, hyphens only
+            import re
+            valid = re.sub(r'[^a-zA-Z0-9 :.-]', '', str(text))
+            return valid.strip()
+
+        # Nodes - Using simple box brackets [] for everything to ensure safety
+        flight_label = sanitize(f"Flight: {trip_plan.flight.airline} - {trip_plan.flight.flight_number}")
+        flight_node = f'Flight["{flight_label}"]'
         
-        # Arrival Cab Node
-        cab_node = f"CabArr{{{{Cab: {trip_plan.arrival_cab.provider} {trip_plan.arrival_cab.pickup_time.strftime('%H:%M')}}}}}"
+        cab_label = sanitize(f"Cab: {trip_plan.arrival_cab.provider} at {trip_plan.arrival_cab.pickup_time.strftime('%H:%M')}")
+        cab_node = f'CabArr["{cab_label}"]'
         
-        # Hotel Node
-        hotel_node = f"Hotel>Hotel: {trip_plan.hotel.name}]"
+        hotel_label = sanitize(f"Hotel: {trip_plan.hotel.name}")
+        hotel_node = f'Hotel["{hotel_label}"]'
         
-        # Connecting them
-        # Start(Home) -> Flight (Simplified, as we don't have departure details in schema yet, 
-        # strictly following the prompt instructions for schemas: "flight, arrival_cab, hotel, daily_schedule")
+        # Edges
+        graph.append(f'    Start((Home)) -->|Fly| {flight_node}')
         
-        graph.append(f"    Start((Home)) -->|Fly| {flight_node}")
-        graph.append(f"    {flight_node} -->|Arrive {trip_plan.flight.arrival_time.strftime('%H:%M')}| {cab_node}")
-        graph.append(f"    {cab_node} -->|To Hotel| {hotel_node}")
+        arr_time = trip_plan.flight.arrival_time.strftime("%H:%M")
+        graph.append(f'    {flight_node} -->|Arrive {arr_time}| {cab_node}')
+        graph.append(f'    {cab_node} -->|To Hotel| {hotel_node}')
         
-        # Daily Schedule
+        # Schedule
         last_node = "Hotel"
         
         for day in trip_plan.daily_schedule:
             for i, activity in enumerate(day.activities):
                 act_id = f"Day{day.day_number}Act{i}"
-                act_node = f"{act_id}({activity.time}: {activity.description})"
+                label = sanitize(f"{activity.time}: {activity.description}")
+                # Truncate
+                if len(label) > 40: label = label[:37] + "..."
+                
+                act_node = f'{act_id}["{label}"]'
                 
                 graph.append(f"    {last_node} -->|Next| {act_node}")
                 last_node = act_id
         
-        # Sleep
-        graph.append(f"    {last_node} --> Sleep((Sleep))")
+        graph.append(f"    {last_node} --> End((Sleep))")
         
-        return "\n".join(graph)
+        final_code = "\n".join(graph)
+        print("\n--- DEBUG: Generated Mermaid Code ---\n")
+        print(final_code)
+        print("\n-------------------------------------\n")
+        
+        return final_code
