@@ -4,19 +4,21 @@ import argparse
 import asyncio
 import sys
 import time
-import ast # Added for robust parsing
+import ast 
 from dotenv import load_dotenv
 
-# --- DroidRun Professional Architecture Imports ---
+# Import MobileRun Wrapper
 try:
-    from droidrun.agent.droid import DroidAgent
-    from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from agents.mobile_run_wrapper import MobileRunWrapper
 except ImportError:
-    print("CRITICAL ERROR: 'droidrun' library not found.")
-    sys.exit(1)
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
+    try:
+        from agents.mobile_run_wrapper import MobileRunWrapper
+    except ImportError:
+         print("CRITICAL ERROR: 'agents.mobile_run_wrapper' not found.")
+         sys.exit(1)
 
-# Import Commerce Agent for price discovery and ordering
+# Import Commerce Agent 
 try:
     from commerce_agent import CommerceAgent
 except ImportError:
@@ -27,79 +29,12 @@ load_dotenv()
 
 class EventCoordinatorAgent:
     def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
-        self.provider = provider
-        self.model = model
+        self.runner = MobileRunWrapper(provider=provider, model=model)
         self.commerce_bot = CommerceAgent(provider=provider, model=model)
-        self._ensure_api_keys()
-
-    def _ensure_api_keys(self):
-        if self.provider == "gemini" and not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
-             print("[Warn] GEMINI_API_KEY not found in env.")
-
-    async def _run_agent(self, goal: str) -> dict:
-        """Helper to run DroidAgent with Robust Regex Parsing."""
-        # ... (Config setup same) ...
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
-        
-        llm = load_llm(provider_name=provider_name, model=self.model, api_key=api_key)
-        
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
-
-        agent = DroidAgent(goal=goal, llms=llm, config=config)
-        
-        try:
-            print(f"      🧠 Analyzing...")
-            result = await agent.run()
-            
-            # --- Robust Parsing ---
-            raw_text = str(result.reason) if hasattr(result, 'reason') else str(result)
-            import re
-            
-            # 1. Try finding JSON block between ```json ... ``` or just { ... }
-            json_match = re.search(r"```json\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
-            if not json_match:
-                json_match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
-            
-            clean_json = "{}"
-            if json_match:
-                clean_json = json_match.group(1)
-            else:
-                # Last resort cleanup
-                clean_json = raw_text.strip()
-                if "<request_accomplished" in clean_json:
-                     clean_json = clean_json.split(">")[1].split("</request_accomplished>")[0].strip()
-
-            try:
-                # Primary Attempt: Standard JSON
-                data = json.loads(clean_json)
-                print(f"      📝 Agent Output: {json.dumps(data)}") 
-                return data
-            except json.JSONDecodeError:
-                # Secondary Attempt: Python Literal Eval (handles single quotes)
-                try:
-                    data = ast.literal_eval(clean_json)
-                    print(f"      📝 Agent Output (via AST): {json.dumps(data)}") 
-                    return data
-                except:
-                     print(f"[Warn] JSON Parse Error. Raw Extracted: {clean_json[:100]}...")
-                     return {"status": "failed", "raw": clean_json}
-            except Exception as e:
-                print(f"[Warn] Parse Error: {e}")
-                return {"status": "failed", "raw": clean_json}
-                
-        except Exception as e:
-            print(f"[Error] Agent Execution Failed: {e}")
-            return {"status": "failed", "error": str(e)}
 
     async def send_invite(self, contact_name: str, message: str, app_name: str = "WhatsApp") -> dict:
         print(f"   📨 Sending Invite to: {contact_name}")
         
-        # Linear Goal: Step-by-step Execution
         goal = (
             f"1. Open '{app_name}'. "
             f"2. IF you see a 'Back' button (arrow) at the top left, Click it to return to the contact list. "
@@ -113,131 +48,30 @@ class EventCoordinatorAgent:
             f"10. Return strict JSON: {{'status': 'success'}}. "
             f"CRITICAL: Do NOT read any messages. Just send and exit."
         )
-        return await self._run_agent(goal)
+        return await self.runner.run_agent(app_name, goal)
 
     async def check_response(self, contact_name: str, invite_snippet: str, app_name: str = "WhatsApp") -> dict:
-        print(f"   � Checking {contact_name}...")
+        print(f"   🔍 Checking {contact_name}...")
         goal = (
-            f"Open '{app_name}'. "
-            f"Navigate to the main Chat List (press Back if in a chat). "
-            f"Search for contact '{contact_name}'. "
-            f"Tap contact to open chat. "
-            f"Read the LAST message. "
-            f"Check if it's from the contact (left side) and NOT our invite (containing '{invite_snippet[:15]}'). "
-            f"If it IS a new reply (e.g. they say 'Masala Dosa'), extract the item. "
-            f"Return strict JSON: {{'status': 'new_reply', 'items': ['Item1']}} or {{'status': 'waiting'}}. "
+            f"1. Open '{app_name}'. "
+            f"2. Navigate to the main Chat List (press Back if in a chat). "
+            f"3. Search for contact '{contact_name}'. "
+            f"4. Tap contact to open chat. "
+            f"5. Read the LAST message. "
+            f"6. Check if it's from the contact (left side) and NOT our invite (containing '{invite_snippet[:15]}'). "
+            f"7. If it IS a new reply (e.g. they say 'Masala Dosa'), extract the item. "
+            f"8. Return strict JSON: {{'status': 'new_reply', 'items': ['Item1']}} or {{'status': 'waiting'}}. "
             f"CRITICAL: If a food item is found, you MUST set 'status' to 'new_reply'. Do NOT set it to 'waiting'."
         )
-        return await self._run_agent(goal)
+        return await self.runner.run_agent(app_name, goal)
     
-    # ... (research_item, etc.)
-
-    async def organize_event(self, contacts_str, event_details):
-        # ... (Phase 1 remains same)
-        contacts = [c.strip() for c in contacts_str.split(",")]
-        # ...
-        
-        # --- PHASE 2: POLLING & RESEARCH ---
-        # ...
-        for i in range(max_cycles):
-            # ...
-            for contact in pending_contacts:
-                # Poll
-                await self.go_home() 
-                res = await self.check_response(contact, invite_msg)
-                
-                # Check for 'new_reply' OR if 'items' exists and is not empty
-                is_reply = res.get('status') == 'new_reply'
-                has_items = res.get('items') and len(res.get('items')) > 0
-                
-                if is_reply or has_items:
-                    items = res.get('items', [])
-                    # ...
-    
-    # ... (research_item logic remains same)
-
-    async def organize_event(self, contacts_str, event_details):
-        contacts = [c.strip() for c in contacts_str.split(",")]
-        
-        invite_msg = (
-            f"Hi! Invited to {event_details['name']} on {event_details['date']}. "
-            f"Loc: {event_details['location']}. "
-            f"Please Reply with FOOD PREFERENCE."
-        )
-        
-        # --- PHASE 1: INVITE EVERYONE ---
-        print(f"\n=== 📨 PHASE 1: SENDING INVITES ===")
-        print(f"Targeting: {contacts}")
-        
-        for contact in contacts:
-            await self.go_home() # Clean state start
-            await self.send_invite(contact, invite_msg)
-            print(f"   🏠 Resetting to Home after invite to {contact}...")
-            await self.go_home() # STRICT EXIT as requested
-            await asyncio.sleep(2)
-        print("✅ Phase 1 Complete: All invites sent & returned to Home.\n")
-
-        # --- PHASE 2: POLLING & RESEARCH (Infinite) ---
-        print(f"=== 👂 PHASE 2: POLLING & RESEARCH (Infinite Loop) ===")
-        print(f"ℹ️  Agent will now enter Dormant State and wake up every 10s to check for replies.")
-        
-        # Central Data Structure
-        order_plan = {c: {"status": "invited", "research_data": []} for c in contacts}
-        
-        cycle_count = 0
-        while True:
-            cycle_count += 1
-            print(f"\n🔄 Cycle {cycle_count} (Infinite Mode)")
-            
-            pending_contacts = [c for c, data in order_plan.items() if data['status'] == "invited"]
-            
-            if not pending_contacts:
-                print("✅ All contacts has replied and been researched!")
-                break
-            
-            for contact in pending_contacts:
-                # Poll
-                await self.go_home() 
-                res = await self.check_response(contact, invite_msg)
-                
-                print(f"      [DEBUG] Raw Response for {contact}: {res}")
-                
-                # Check for 'new_reply' OR if 'items' exists and is not empty
-                # Case-insensitive check for reliability
-                status = res.get('status', '').lower()
-                is_reply = status == 'new_reply'
-                has_items = res.get('items') and len(res.get('items')) > 0
-                
-                if is_reply or has_items:
-                    items = res.get('items', [])
-                    # Fallback
-                    if not items and res.get('content'): items = [res.get('content')]
-                    
-                    if items:
-                        print(f"   🎉 {contact} replied: {items}")
-                        order_plan[contact]['status'] = "replied"
-                        
-                        # Research Loop
-                        researched_items = []
-                        for item in items:
-                            data = await self.research_item(item)
-                            if data: researched_items.append(data)
-                        
-                        order_plan[contact]['research_data'] = researched_items
-                        order_plan[contact]['status'] = "researched"
-                        print(f"   💾 Data saved for {contact}.")
-                    else:
-                        print(f"   ℹ️ {contact} replied but no items found. Content: {res.get('content')}")
-                else:
-                     print(f"   ⏳ {contact} hasn't replied yet.")
-                
-                await asyncio.sleep(2)
-
     async def go_home(self) -> dict:
-        """Helper to ensure device is at Home Screen."""
+        """Helper to ensure device is at Home Screen (via DroidRun default or MobileRun capability)."""
         print("   🏠 Navigating to Home Screen...")
         goal = "Press the System Home Button immediately. Do NOT swipe. Do NOT look for keyboard. Just press 'Home'."
-        return await self._run_agent(goal)
+        # We can run this on any registered app context, usually effectively resets state
+        # Or we can treat "System" as a pseudo-app if MobileRun supports it, otherwise default to DroidRun fallback
+        return await self.runner._run_local_droid(goal) 
 
     async def research_item(self, item: str) -> dict:
         """Finds best price across Swiggy/Zomato. Returns Data Dict (No Order)."""
@@ -286,8 +120,6 @@ class EventCoordinatorAgent:
             best_title = z_data.get('title', item)
             best_restaurant = z_data.get('restaurant', 'Unknown')
         
-        print(f"      🏆 Winner: {best_app} @ {best_price}")
-            
         print(f"      🏆 Winner: {best_app} ({best_restaurant}) @ {best_price}")
         
         return {
@@ -313,16 +145,17 @@ class EventCoordinatorAgent:
         print(f"Targeting: {contacts}")
         
         for contact in contacts:
+            await self.go_home() # Clean state start
             await self.send_invite(contact, invite_msg)
+            print(f"   🏠 Resetting to Home after invite to {contact}...")
+            await self.go_home() 
             await asyncio.sleep(2)
         print("✅ Phase 1 Complete: All invites sent.\n")
 
         # --- PHASE 2: POLLING & RESEARCH ---
         print(f"=== 👂 PHASE 2: POLLING & RESEARCH (Loop) ===")
         
-        # Central Data Structure
         order_plan = {c: {"status": "invited", "research_data": []} for c in contacts}
-        
         max_cycles = 3
         
         for i in range(max_cycles):
@@ -336,6 +169,7 @@ class EventCoordinatorAgent:
             
             for contact in pending_contacts:
                 # Poll
+                await self.go_home()
                 res = await self.check_response(contact, invite_msg)
                 
                 if res.get('status') == 'new_reply':
@@ -355,7 +189,7 @@ class EventCoordinatorAgent:
                         
                         order_plan[contact]['research_data'] = researched_items
                         order_plan[contact]['status'] = "researched"
-                        print(f"   � Data saved for {contact}.")
+                        print(f"   💾 Data saved for {contact}.")
                     else:
                         print(f"   ℹ️ {contact} replied but no items found.")
                 else:
@@ -365,7 +199,7 @@ class EventCoordinatorAgent:
             
             # DORMANT STATE
             print("   💤 Entering Dormant State... Waking up in 10s...")
-            await self.go_home() # Ensure we are at home while waiting
+            await self.go_home() 
             await asyncio.sleep(10)
 
         # --- PHASE 3: BULK ORDER ---
