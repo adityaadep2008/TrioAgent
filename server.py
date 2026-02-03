@@ -102,7 +102,8 @@ manager = ConnectionManager()
 # Data Models
 class TaskPayload(BaseModel):
     persona: str
-    product: str = None
+    product: Optional[str] = None
+    url: Optional[str] = None
     # For Rider
     pickup: str = None
     drop: str = None
@@ -182,13 +183,13 @@ async def run_agent_task(payload: TaskPayload):
     try:
         if payload.persona == "shopper":
             agent = CommerceAgent(model="models/gemini-2.5-flash")
-            await log_and_broadcast(task_id, f"Searching for {payload.product} on Amazon/Flipkart...")
+            await log_and_broadcast(task_id, f"Searching for {payload.product or payload.url} on Amazon/Flipkart...")
             
-            result = await agent.execute_task("Amazon", payload.product, "product") 
+            result = await agent.execute_task("Amazon", payload.product, "product", url=payload.url)
             
             if result['status'] == 'failed':
                  await log_and_broadcast(task_id, "Amazon failed, trying Flipkart...")
-                 result = await agent.execute_task("Flipkart", payload.product, "product")
+                 result = await agent.execute_task("Flipkart", payload.product, "product", url=payload.url)
                  
         elif payload.persona == "rider":
             agent = RideComparisonAgent(model="models/gemini-2.5-flash")
@@ -398,4 +399,4 @@ async def create_task(payload: TaskPayload):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8002)

@@ -11,9 +11,12 @@ load_dotenv()
 try:
     from mobilerun import MobileRunClient
 except ImportError:
-    # If sdk not installed, we will rely 100% on fallback
-    MobileRunClient = None
-    print("[MobileRun] SDK not found. Will default to DroidRun.")
+    try:
+        from mobile_use import MobileRunClient
+    except ImportError:
+        # If sdk not installed, we will rely 100% on fallback
+        MobileRunClient = None
+        print("[MobileRun] SDK not found. Will default to DroidRun.")
 
 # --- DroidRun Imports (for Fallback) ---
 try:
@@ -117,7 +120,7 @@ class MobileRunWrapper:
         
         manager_config = ManagerConfig(vision=True)
         executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
+        agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
         telemetry_config = TelemetryConfig(enabled=False)
         config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
 

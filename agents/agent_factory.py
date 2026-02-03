@@ -11,7 +11,10 @@ load_dotenv()
 try:
     from mobilerun import MobileRunClient
 except ImportError:
-    MobileRunClient = None
+    try:
+        from mobile_use import MobileRunClient
+    except ImportError:
+        MobileRunClient = None
 
 try:
     from droidrun.agent.droid import DroidAgent
@@ -89,7 +92,7 @@ class AgentFactory:
         
         manager_config = ManagerConfig(vision=True)
         executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
+        agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
         telemetry_config = TelemetryConfig(enabled=False)
         config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
 

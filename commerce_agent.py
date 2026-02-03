@@ -4,9 +4,10 @@ import argparse
 import asyncio
 import re
 import sys
+from typing import Optional
 from dotenv import load_dotenv
 
-# --- DroidRun Professional Architecture Imports ---
+import asyncio.subprocess
 # try:
 from droidrun.agent.droid.droid_agent import DroidAgent
 from droidrun.tools.adb import AdbTools
@@ -55,7 +56,7 @@ class CommerceAgent:
             print(f"[Error] Price Parse Failed for '{price_str}': {e}")
             return float('inf')
 
-    async def execute_task(self, app_name: str, query: str, item_type: str, action: str = "search", target_item: str = None) -> dict:
+    async def execute_task(self, app_name: str, query: Optional[str] = None, item_type: str = "product", action: str = "search", target_item: Optional[str] = None, url: Optional[str] = None) -> dict:
         """
         Spawns a DroidAgent to execute a specific commerce task.
         Uses Vision capabilities for better UI understanding.
@@ -64,7 +65,21 @@ class CommerceAgent:
         print(f"\n[CommerceAgent] Initializing Task for: {app_name} (Action: {action})")
         
         # 1. Define Goal (Natural Language with Structural Constraints)
-        if action == "order":
+        if url:
+            goal = (
+                f"Open the app '{app_name}'. "
+                f"Navigate directly to the URL: '{url}'. "
+                f"Wait for the page to load. "
+                f"Visually SCAN the product details page. "
+                f"Extract the following details for the item: "
+                f"1. Product Name (title) "
+                f"2. Price (numeric value) "
+                f"3. Rating "
+                f"4. Restaurant Name "
+                f"Return a strict JSON object with keys: 'title', 'price', 'rating', 'restaurant'. "
+                f"If the page fails to load or details cannot be found, return status='failed'. "
+            )
+        elif action == "order":
             item_instruction = f"find the item '{target_item}'" if target_item else "Select the first relevant item"
             goal = (
                 f"Open the app '{app_name}'. "
@@ -96,7 +111,6 @@ class CommerceAgent:
             )
 
         # 2. Configure Agent (Professional Pattern)
-        # 2. Configure Agent (Professional Pattern)
         # Using load_llm to avoid DroidrunConfig error
         from droidrun.agent.utils.llm_picker import load_llm
 
@@ -110,6 +124,45 @@ class CommerceAgent:
         # Create tools instance
         tools = await AdbTools.create()
         
+        # Mapping app names to package names
+        package_names = {
+            "Amazon": "com.amazon.mShop.android.shopping",
+            "Flipkart": "com.flipkart.android",
+            # Add other app mappings as needed
+        }
+
+        # If a URL is provided, instruct DroidRun to open it directly
+        if url:
+            try:
+                target_package = package_names.get(app_name)
+                if not target_package:
+                    raise ValueError(f"Unknown app_name for direct URL: {app_name}")
+
+                # ADB command to start an activity to view the URL in the specified app
+                adb_command = (
+                    f"am start -a android.intent.action.VIEW "
+                    f"-d \"{url}\" "
+                    f"{target_package}"
+                )
+                await tools.shell(adb_command)
+                print(f"[CommerceAgent] Opened URL {url} in {app_name} via ADB shell.")
+
+                # After opening URL, the DroidAgent's goal becomes to extract info from the page
+                goal_for_agent = (
+                    f"Visually SCAN the product details page. "
+                    f"Extract the following details for the item: "
+                    f"1. Product Name (title) "
+                    f"2. Price (numeric value) "
+                    f"3. Rating "
+                    f"4. Restaurant Name "
+                    f"Return a strict JSON object with keys: 'title', 'price', 'rating', 'restaurant'. "
+                    f"If details cannot be found, return status='failed'. "
+                )
+                goal = goal_for_agent # Override the main goal for DroidAgent
+            except Exception as e:
+                print(f"[Error] Failed to open URL {url} directly: {e}")
+                return {"platform": app_name, "status": "failed", "data": {"error": str(e)}}
+
         # Instantiate DroidAgent directly with required args for v0.3.2
         # signature: (goal, llm, tools, personas, max_steps, timeout, vision, reasoning, reflection, ...)
         agent = DroidAgent(
