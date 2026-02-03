@@ -7,9 +7,9 @@ from datetime import datetime
 
 # --- DroidRun Professional Architecture Imports ---
 try:
-    from droidrun.agent.droid import DroidAgent
+    from droidrun.agent.droid.droid_agent import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.tools.adb import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found.")
     sys.exit(1)
@@ -29,13 +29,17 @@ class StayManager:
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
         llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.api_key)
         
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
+        tools = await AdbTools.create()
 
-        agent = DroidAgent(goal=goal, llms=llm, config=config)
+        agent = DroidAgent(
+            goal=goal, 
+            llm=llm, 
+            tools=tools,
+            vision=True, 
+            reasoning=True, 
+            timeout=1000, # Hardcoded, assuming default or acceptable timeout
+            debug=False
+        )
         
         try:
             print(f"      🧠 StayAgent Analyzing...")
