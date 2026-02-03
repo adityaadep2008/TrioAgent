@@ -6,47 +6,39 @@ import re
 import sys
 from dotenv import load_dotenv
 
-# --- DroidRun Professional Architecture Imports ---
+# Import MobileRun Wrapper
 try:
-    from droidrun.agent.droid import DroidAgent
-    from droidrun.config_manager import DroidrunConfig
+    from agents.mobile_run_wrapper import MobileRunWrapper
 except ImportError:
-    print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
-    print("Please ensure you have installed it: pip install droidrun")
-    sys.exit(1)
+    # Handle imports from root
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
+    try:
+        from agents.mobile_run_wrapper import MobileRunWrapper
+    except ImportError:
+         print("CRITICAL ERROR: 'agents.mobile_run_wrapper' not found.")
+         sys.exit(1)
 
 # Load environment variables
 load_dotenv()
 
 class CommerceAgent:
     """
-    Professional Commerce Agent using DroidRun Framework.
-    Follows the 'Brain' (Host) and 'Senses' (Portal) architecture.
+    Professional Commerce Agent using MobileRun Cloud (with DroidRun Fallback).
     """
     
-    def __init__(self, provider="gemini", model="gemini-1.5-flash"):
-        self.provider = provider
-        self.model = model
-        self._ensure_api_keys()
-
-    def _ensure_api_keys(self):
-        if self.provider == "gemini" and not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
-             # Fallback check
-             print("[Warn] GEMINI_API_KEY not found in env, checking GOOGLE_API_KEY")
+    def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
+        self.runner = MobileRunWrapper(provider=provider, model=model)
 
     def _parse_price(self, price_str):
         """Robust price parsing utility."""
         if not price_str: return float('inf')
         try:
             raw = str(price_str).strip()
-            # print(f"[DEBUG] Parsing Price Raw: '{raw}'") # User requested investigation of mismatched logs
-            
             clean = raw.lower().replace(',', '').replace('₹', '').replace('rs', '').replace('rs.', '').strip()
             match = re.search(r'\d+(\.\d+)?', clean)
             
             if match:
                  val = float(match.group())
-                 # print(f"[DEBUG] Parsed Value: {val}")
                  return val
             else:
                  print(f"[Warn] Could not extract number from price string: '{raw}'")
@@ -57,13 +49,11 @@ class CommerceAgent:
 
     async def execute_task(self, app_name: str, query: str, item_type: str, action: str = "search", target_item: str = None) -> dict:
         """
-        Spawns a DroidAgent to execute a specific commerce task.
-        Uses Vision capabilities for better UI understanding.
-        Action: 'search' (compare prices) or 'order' (buy item via COD).
+        Spawns a MobileRun/DroidAgent to execute a specific commerce task.
         """
         print(f"\n[CommerceAgent] Initializing Task for: {app_name} (Action: {action})")
         
-        # 1. Define Goal (Natural Language with Structural Constraints)
+        # 1. Define Goal
         if action == "order":
             item_instruction = f"find the item '{target_item}'" if target_item else "Select the first relevant item"
             goal = (
@@ -95,96 +85,29 @@ class CommerceAgent:
                 f"If no exact match is found, find the closest match. "
             )
 
-        # 2. Configure Agent (Professional Pattern)
-        # Using load_llm to avoid DroidrunConfig error
-        from droidrun.agent.utils.llm_picker import load_llm
-        from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
-        
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        llm = load_llm(
-            provider_name="GoogleGenAI",
-            model=self.model,
-            api_key=api_key
-        )
-
-        # Create properly typed config
-        # Enable vision for Manager (planning) and Executor (acting)
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        
-        agent_config = AgentConfig(
-            reasoning=True,
-            manager=manager_config,
-            executor=executor_config
-        )
-        
-        # Disable telemetry to avoid "multiple values for distinct_id" error
-        telemetry_config = TelemetryConfig(enabled=False)
-        
-        config = DroidrunConfig(
-            agent=agent_config,
-            telemetry=telemetry_config
-        )
-
-        agent = DroidAgent(
-            goal=goal,
-            llms=llm,
-            config=config,
-        )
-
-        # 3. Execute
+        # 2. Execute via Wrapper
         start_data = {"platform": app_name, "status": "failed", "data": {}}
+        
         try:
-            print(f"[CommerceAgent] 🧠 Running Agent Logic...")
-            result = await agent.run()
-            print(f"[DEBUG] Raw Agent Result type: {type(result)}")
-            print(f"[DEBUG] Raw Agent Result: {result}")
-            
-            # 4. Parse Output
-            if result:
-                # Handle DroidAgent Event objects
-                if hasattr(result, 'reason'):
-                     clean_json = str(result.reason).strip()
-                else:
-                     clean_json = str(result).strip()
-                
-                print(f"[DEBUG] Processing result string: {clean_json[:100]}...")
-
-                # XML tag cleanup (common with DroidRun Reasoning)
-                if "<request_accomplished" in clean_json:
-                    try:
-                        clean_json = clean_json.split(">")[1].split("</request_accomplished>")[0].strip()
-                    except IndexError:
-                        pass
-                
-                # Markdown cleanup
-                if "```json" in clean_json:
-                    clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-                elif "```" in clean_json:
-                    clean_json = clean_json.split("```")[1].split("```")[0].strip()
-                
-                # Heuristic validation
-                if clean_json.startswith("{"):
-                    try:
-                         data = json.loads(clean_json)
-                         start_data["data"] = data
-                         start_data["status"] = "success"
-                         start_data["data"]["numeric_price"] = self._parse_price(data.get("price"))
-                         # Ensure restaurant key exists
-                         if "restaurant" not in start_data["data"]:
-                              start_data["data"]["restaurant"] = "Unknown"
-                    except json.JSONDecodeError:
-                         print(f"[Warn] JSON Decode Error: {clean_json}")
-                else:
-                     print(f"[Warn] Agent output was not JSON: {clean_json[:50]}...")
-            else:
-                 print("[Warn] Agent returned None result.")
-            
-            return start_data
+             result = await self.runner.run_agent(app_name, goal)
+             
+             # Handle Output
+             if result:
+                 # Check for explicit failure from wrapper parse
+                 if result.get("status") == "failed" and "data" not in result:
+                      print(f"[Warn] Agent reported failure: {result}")
+                 else:
+                      start_data["data"] = result
+                      start_data["status"] = "success"
+                      start_data["data"]["numeric_price"] = self._parse_price(result.get("price"))
+                      if "restaurant" not in start_data["data"]:
+                          start_data["data"]["restaurant"] = "Unknown"
+             return start_data
 
         except Exception as e:
-            print(f"[Error] Task Execution Failed: {e}")
-            return start_data
+             print(f"[Error] Task Execution Failed: {e}")
+             return start_data
+
 
     async def auto_order_cheapest(self, query):
         """
@@ -244,7 +167,7 @@ class CommerceAgent:
         return results
 
 async def main():
-    parser = argparse.ArgumentParser(description="BestBuy-Agent: Commerce Automation (DroidRun)")
+    parser = argparse.ArgumentParser(description="BestBuy-Agent: Commerce Automation (MobileRun)")
     parser.add_argument("--task", choices=['shopping', 'food'], default='shopping')
     parser.add_argument("--query", required=True)
     parser.add_argument("--action", choices=['search', 'order'], default='search', help="Action to perform")

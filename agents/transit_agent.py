@@ -4,14 +4,12 @@ import asyncio
 from datetime import datetime, timedelta
 import sys
 
-# --- DroidRun Professional Architecture Imports ---
+# Import AgentFactory
 try:
-    from droidrun.agent.droid import DroidAgent
-    from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from agents.agent_factory import AgentFactory
 except ImportError:
-    print("CRITICAL ERROR: 'droidrun' library not found.")
-    sys.exit(1)
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+    from agents.agent_factory import AgentFactory
 
 from schemas import FlightDetails, CabDetails
 
@@ -19,51 +17,6 @@ class TransitManager:
     def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
         self.provider = provider
         self.model = model
-        self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-
-    async def _run_agent(self, goal: str) -> dict:
-        """Helper to run DroidAgent."""
-        # Config setup
-        provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
-        llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.api_key)
-        
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=True, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
-
-        agent = DroidAgent(goal=goal, llms=llm, config=config)
-        
-        try:
-            print(f"      🧠 TransitAgent Analyzing...")
-            result = await agent.run()
-            
-            # Robust Parsing (based on EventCoordinator logic)
-            raw_text = str(result.reason) if hasattr(result, 'reason') else str(result)
-            import re
-            
-            # Try finding JSON block
-            json_match = re.search(r"```json\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
-            if not json_match:
-                json_match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
-            
-            clean_json = "{}"
-            if json_match:
-                clean_json = json_match.group(1)
-            else:
-                clean_json = raw_text.strip() # Attempt direct parse
-
-            try:
-                data = json.loads(clean_json)
-                return data
-            except json.JSONDecodeError:
-                print(f"[Warn] JSON Parse Error. Raw: {clean_json[:100]}...")
-                return {"status": "failed", "raw": clean_json}
-                
-        except Exception as e:
-            print(f"[Error] Agent Execution Failed: {e}")
-            return {"status": "failed", "error": str(e)}
 
     async def find_best_flight(self, source: str, dest: str, date: str) -> FlightDetails:
         print(f"✈️ Searching Flight: {source} to {dest} on {date}")
@@ -84,9 +37,14 @@ class TransitManager:
             f"13. Return strict JSON: {{'airline': '...', 'flight_number': '...', 'price': '...', 'arrival_time': 'YYYY-MM-DD HH:MM:SS'}}."
         )
         
-        result = await self._run_agent(goal)
+        # Use AgentFactory Smart Router
+        result = await AgentFactory.run_task(
+            app_identifier="MakeMyTrip",
+            instruction=goal,
+            provider=self.provider,
+            model=self.model
+        )
         
-        # Fallback/Validation logic could go here
         try:
              # Basic validation of return format
              flight = FlightDetails(
@@ -98,7 +56,6 @@ class TransitManager:
              return flight
         except Exception as e:
             print(f"Error parsing flight details: {e}")
-            # Return dummy/error object or raise
             raise e
 
     async def book_cab(self, location: str, flight_arrival_time: datetime) -> CabDetails:
@@ -118,7 +75,13 @@ class TransitManager:
             f"8. Return strict JSON: {{'provider': 'MakeMyTrip Cabs', 'pickup_time': '{pickup_time.strftime('%Y-%m-%d %H:%M:%S')}', 'estimated_price': '...'}}."
         )
 
-        result = await self._run_agent(goal)
+        # Use AgentFactory Smart Router
+        result = await AgentFactory.run_task(
+            app_identifier="Uber",
+            instruction=goal,
+            provider=self.provider,
+            model=self.model
+        )
         
         try:
              cab = CabDetails(
@@ -130,3 +93,5 @@ class TransitManager:
         except Exception as e:
             print(f"Error parsing cab details: {e}")
             raise e
+
+
