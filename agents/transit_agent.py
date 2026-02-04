@@ -10,8 +10,10 @@ try:
     from droidrun.agent.utils.llm_picker import load_llm
     from droidrun import AdbTools
 except ImportError:
-    print("CRITICAL ERROR: 'droidrun' library not found.")
-    sys.exit(1)
+    print("WARNING: 'droidrun' library not found. Transit capabilities disabled.")
+    DroidAgent = None
+    load_llm = None
+    AdbTools = None
 
 from schemas import FlightDetails, CabDetails
 

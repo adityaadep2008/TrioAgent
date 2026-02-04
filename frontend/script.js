@@ -1,9 +1,98 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // GSAP Setup
-    gsap.registerPlugin(TextPlugin);
+    // --- SETUP: PLUGINS & UTILS ---
+    gsap.registerPlugin(ScrollTrigger, TextPlugin);
 
-    // Elements
-    const personaSelect = document.getElementById('persona-select');
+    // Lenis Smooth Scroll
+    const lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        direction: 'vertical',
+        smooth: true,
+    });
+    function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // Helper: Simulated SplitText (for Hero)
+    function wrapCharacters(element) {
+        if (!element) return;
+        const text = element.innerText;
+        element.innerHTML = text.split('').map(char => `<span class="char">${char}</span>`).join('');
+    }
+
+    // --- ANIMATIONS ---
+
+    // 1. Hero Reveal
+    const heroTitle = document.querySelector('.hero-title');
+    // We can't actually use SplitText plugin as it's paid and likely not in the CDN above without key
+    // So we use a simple opacity fade-up for now, or the helper if we want chars.
+    // Let's stick to clean Y-axis reveals for words.
+
+    const tl = gsap.timeline();
+    tl.from('.hero-title', {
+        y: 100,
+        opacity: 0,
+        duration: 1.2,
+        ease: 'power4.out',
+        delay: 0.2
+    })
+        .from('.hero-desc', {
+            y: 30,
+            opacity: 0,
+            duration: 1,
+            ease: 'power3.out'
+        }, '-=0.8')
+        .from('.cta-group', {
+            y: 20,
+            opacity: 0,
+            duration: 0.8
+        }, '-=0.6')
+        .from('.voice-trigger', {
+            scale: 0,
+            opacity: 0,
+            duration: 0.5,
+            ease: 'back.out(1.7)'
+        }, '-=0.4');
+
+    // 2. Features Staircase
+    const features = document.querySelectorAll('.feature-item');
+    if (features.length > 0) {
+        gsap.from(features, {
+            scrollTrigger: {
+                trigger: '.feature-list',
+                start: 'top 80%',
+            },
+            y: 50,
+            opacity: 0,
+            duration: 1,
+            stagger: 0.15,
+            ease: 'power3.out'
+        });
+    }
+
+    // 3. Demo Section Parallax/Reveal
+    gsap.from('.demo-section', {
+        scrollTrigger: {
+            trigger: '.demo-section',
+            start: 'top 85%',
+        },
+        y: 100,
+        opacity: 0,
+        duration: 1.2,
+        ease: 'power2.out'
+    });
+
+
+    // --- ORIGINAL FUNCTIONALITY: PERSONA SELECTOR ---
+    // (Preserved IDs and Logic from original file)
+
+    const hiddenInput = document.getElementById('persona-select-value');
+    const dropdownTrigger = document.getElementById('dropdown-trigger');
+    const dropdownOptions = document.querySelector('.dropdown-options');
+    const options = document.querySelectorAll('.dropdown-option');
+    const selectedText = document.querySelector('.selected-text');
     const formContainer = document.getElementById('dynamic-form-container');
     const forms = {
         shopper: document.getElementById('form-shopper'),
@@ -15,485 +104,277 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const findDealBtn = document.getElementById('find-deal-btn');
 
-
-    // Lenis Smooth Scroll
-    const lenis = new Lenis({
-        duration: 1.2,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        direction: 'vertical',
-        gestureDirection: 'vertical',
-        smooth: true,
-        mouseMultiplier: 1,
-        smoothTouch: false,
-        touchMultiplier: 2,
-    });
-
-    function raf(time) {
-        lenis.raf(time);
-        requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
-
-    // Init Animations
-    const initTimeline = gsap.timeline({ paused: true });
-
-    initTimeline
-        .from('.reveal-text', {
-            y: 100,
-            opacity: 0,
-            duration: 1.2,
-            stagger: 0.1,
-            ease: 'power4.out'
-        })
-        .from('.hero-subtitle', {
-            opacity: 0,
-            y: 20,
-            duration: 1
-        }, '-=0.8')
-        .from('.interaction-area', {
-            opacity: 0,
-            x: 30, // Came from right due to split layout
-            duration: 1
-        }, '-=0.6');
-
-    // Preloader Sequence
-    const counterElement = document.querySelector('.counter');
-    const preloaderElement = document.querySelector('.preloader');
-
-    let count = { val: 0 };
-
-    gsap.to(count, {
-        val: 100,
-        duration: 2.5,
-        ease: 'power2.inOut',
-        onUpdate: () => {
-            counterElement.textContent = Math.floor(count.val).toString().padStart(3, '0'); // 001, 002 format? or just 0
-
-            // Zoom Effect during count
-            const progress = count.val / 100;
-            // Responsive Multiplier: 15 for Desktop, 5 for Mobile
-            const isMobile = window.innerWidth < 768;
-            const multiplier = isMobile ? 5 : 15;
-
-            const baseSize = isMobile ? 3 : 5; // Base rem size
-            const size = baseSize + (progress * multiplier);
-
-            counterElement.style.fontSize = `${size}rem`;
-        },
-        onComplete: () => {
-            // Reveal App
-            const preloaderTimeline = gsap.timeline();
-
-            preloaderTimeline
-                .to(counterElement, {
-                    scale: 1.1,
-                    duration: 0.2,
-                    ease: "power1.out"
-                })
-                .to(preloaderElement, {
-                    yPercent: -100,
-                    duration: 1,
-                    ease: "power4.inOut"
-                })
-                .add(() => {
-                    initTimeline.play();
-                }, "-=0.5");
-        }
-    });
-
-
-
-
-    // Custom Dropdown Logic
-    const dropdownTrigger = document.querySelector('.dropdown-trigger');
-    const dropdownOptions = document.querySelector('.dropdown-options');
-    const options = document.querySelectorAll('.dropdown-option');
-    const selectedText = document.querySelector('.selected-text');
-    const hiddenInput = document.getElementById('persona-select-value');
-
-    // Toggle Dropdown
-    dropdownTrigger.addEventListener('click', () => {
-        dropdownOptions.classList.toggle('active');
-
-        // Rotate arrow
-        const arrow = dropdownTrigger.querySelector('.dropdown-arrow');
-        if (dropdownOptions.classList.contains('active')) {
-            gsap.to(arrow, { rotation: 225, duration: 0.3 });
-        } else {
-            gsap.to(arrow, { rotation: 45, duration: 0.3 });
-        }
-    });
-
-    // Option Selection
-    options.forEach(option => {
-        option.addEventListener('click', () => {
-            const value = option.dataset.value;
-            const text = option.textContent;
-
-            // Update UI
-            selectedText.textContent = text;
-            hiddenInput.value = value;
-            dropdownOptions.classList.remove('active');
-
-            // Reset arrow
+    // Dropdown Interaction
+    if (dropdownTrigger && dropdownOptions) {
+        dropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownOptions.classList.toggle('active');
             const arrow = dropdownTrigger.querySelector('.dropdown-arrow');
-            gsap.to(arrow, { rotation: 45, duration: 0.3 });
-
-            // Trigger Form Switch
-            switchForm(value);
+            gsap.to(arrow, { rotation: dropdownOptions.classList.contains('active') ? 180 : 0, duration: 0.3 });
         });
-    });
 
-    // Close dropdown on outside click
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.custom-dropdown-container')) {
+        document.addEventListener('click', () => {
             dropdownOptions.classList.remove('active');
             const arrow = dropdownTrigger.querySelector('.dropdown-arrow');
-            gsap.to(arrow, { rotation: 45, duration: 0.3 });
-        }
-    });
+            if (arrow) gsap.to(arrow, { rotation: 0, duration: 0.3 });
+        });
+
+        options.forEach(option => {
+            option.addEventListener('click', () => {
+                const value = option.dataset.value;
+                const text = option.textContent;
+
+                selectedText.textContent = text;
+                hiddenInput.value = value;
+
+                switchForm(value);
+            });
+        });
+    }
 
     function switchForm(persona) {
-        // Dynamic Button Text
+        // Update Button Text
         const btnText = findDealBtn.querySelector('.btn-text');
-        let newText = "Find Best Deal";
+        let newText = "Execute (" + persona + ")";
+        if (persona === 'traveller') newText = "Plan Trip";
+        if (persona === 'rider') newText = "Find Ride";
 
-        if (persona === 'traveller') {
-            newText = "Plan Best Trip";
-        } else if (persona === 'rider') {
-            newText = "Find Best Ride";
-        }
+        gsap.to(btnText, {
+            opacity: 0, duration: 0.2, onComplete: () => {
+                btnText.textContent = newText;
+                gsap.to(btnText, { opacity: 1, duration: 0.2 });
+            }
+        });
 
-        // Smooth Text Transition
-        if (btnText.textContent !== newText) {
-            gsap.to(btnText, {
-                duration: 0.2,
-                opacity: 0,
-                onComplete: () => {
-                    btnText.textContent = newText;
-                    gsap.to(btnText, { duration: 0.2, opacity: 1 });
-                }
-            });
-        }
+        // Switch Forms
+        Object.values(forms).forEach(f => {
+            if (!f.classList.contains('hidden')) {
+                gsap.to(f, {
+                    opacity: 0, y: -10, duration: 0.3, onComplete: () => {
+                        f.classList.add('hidden');
+                    }
+                });
+            }
+        });
 
-        // Animate out current forms
-        const currentVisible = formContainer.querySelector('.form-content:not(.hidden)');
-        if (currentVisible) {
-            gsap.to(currentVisible.children, {
-                y: -20,
-                opacity: 0,
-                stagger: 0.05,
-                duration: 0.4,
-                ease: 'power2.in',
-                onComplete: () => {
-                    currentVisible.classList.add('hidden');
-                    showNewForm(persona);
-                }
-            });
-        } else {
-            showNewForm(persona);
-        }
-    }
-
-    function showNewForm(persona) {
         const activeForm = forms[persona];
         if (activeForm) {
-            activeForm.classList.remove('hidden');
-            // Reset state
-            gsap.set(activeForm.children, { y: 30, opacity: 0 });
-
-            // Stagger in
-            gsap.to(activeForm.children, {
-                y: 0,
-                opacity: 1,
-                stagger: 0.1,
-                duration: 0.8,
-                ease: 'power3.out',
-                delay: 0.1
-            });
+            setTimeout(() => {
+                activeForm.classList.remove('hidden');
+                gsap.fromTo(activeForm, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 });
+            }, 300);
         }
     }
 
-    // Button Magnetic Fill Effect
-    findDealBtn.addEventListener('mousemove', (e) => {
-        const rect = findDealBtn.getBoundingClientRect();
-        const fill = findDealBtn.querySelector('.btn-fill');
 
-        // Calculate mouse position relative to button
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        gsap.to(fill, {
-            left: x,
-            top: y,
-            duration: 0.3,
-            ease: 'power2.out'
-        });
+    // --- DYNAMIC INPUT HANDLERS (Event Delegation) ---
+    formContainer.addEventListener('click', (e) => {
+        if (e.target.closest('#add-guest-btn')) {
+            const container = document.getElementById('guest-list-container');
+            const div = document.createElement('div');
+            div.className = 'guest-item';
+            div.style.marginBottom = '10px';
+            div.innerHTML = `<input type="text" class="styled-input guest-name" placeholder="Guest Name">`;
+            container.appendChild(div);
+            gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
+        }
+        if (e.target.closest('#add-medicine-btn')) {
+            const container = document.getElementById('medicine-list-container');
+            const div = document.createElement('div');
+            div.className = 'input-group medicine-item';
+            div.style.display = 'flex'; div.style.gap = '10px'; div.style.marginBottom = '10px';
+            div.innerHTML = `
+                <input type="text" class="styled-input med-name" placeholder="Medicine Name" style="flex: 2;">
+                <input type="number" class="styled-input med-qty" placeholder="Qty" style="flex: 1;" value="1">
+            `;
+            container.appendChild(div);
+            gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
+        }
     });
 
-    // Toggle Text Listener
-    const toggle = document.getElementById('foodie-action-toggle');
-    const toggleText = document.getElementById('toggle-status-text');
-    if (toggle) {
-        toggle.addEventListener('change', () => {
-            if (toggle.checked) {
-                toggleText.textContent = "Autonomous Order";
-                gsap.to(toggleText, { color: "#000", fontWeight: "bold", duration: 0.3 });
-            } else {
-                toggleText.textContent = "Find Best Deal";
-                gsap.to(toggleText, { color: "#555", fontWeight: "normal", duration: 0.3 });
-            }
-        });
-    }
-
-    // Rider Preferences Logic
+    // Pill and Toggle Logic for Rider/Foodie
     const riderPills = document.querySelectorAll('#rider-preferences .pill-option');
     const riderPrefInput = document.getElementById('rider-preference-value');
-    if (riderPills) {
-        riderPills.forEach(pill => {
-            pill.addEventListener('click', () => {
-                // Remove active from all
-                riderPills.forEach(p => p.classList.remove('active'));
-                // Add to clicked
-                pill.classList.add('active');
-                riderPrefInput.value = pill.dataset.value;
-            });
+    riderPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            riderPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            if (riderPrefInput) riderPrefInput.value = pill.dataset.value;
         });
-    }
-
-    // Rider Toggle Listener
-    const riderToggle = document.getElementById('rider-action-toggle');
-    const riderToggleText = document.getElementById('rider-toggle-text');
-    if (riderToggle) {
-        riderToggle.addEventListener('change', () => {
-            if (riderToggle.checked) {
-                riderToggleText.textContent = "Book Ride";
-                gsap.to(riderToggleText, { color: "#000", fontWeight: "bold", duration: 0.3 });
-            } else {
-                riderToggleText.textContent = "Compare Rides";
-                gsap.to(riderToggleText, { color: "#555", fontWeight: "normal", duration: 0.3 });
-            }
-        });
-    }
-
-    // --- Dynamic Input Handlers ---
-
-    // Add Guest
-    // --- Dynamic Input Handlers (Event Delegation) ---
-    document.addEventListener('click', (e) => {
-        // Add Guest (Use closest to catch clicks on children if any)
-        if (e.target.closest('#add-guest-btn')) {
-            console.log("Add Guest Clicked");
-            const guestListContainer = document.getElementById('guest-list-container');
-            if (guestListContainer) {
-                const div = document.createElement('div');
-                div.className = 'guest-item';
-                div.style.marginBottom = '10px';
-                div.innerHTML = `<input type="text" class="styled-input guest-name" placeholder="Guest Name (as in Contacts)">`;
-                guestListContainer.appendChild(div);
-
-                // Animate in
-                if (window.gsap) gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
-            }
-        }
-
-        // Add Medicine
-        if (e.target.closest('#add-medicine-btn')) {
-            console.log("Add Medicine Clicked");
-            const medListContainer = document.getElementById('medicine-list-container');
-            if (medListContainer) {
-                const div = document.createElement('div');
-                div.className = 'input-group medicine-item';
-                div.style.display = 'flex';
-                div.style.gap = '10px';
-                div.style.marginBottom = '10px';
-                div.innerHTML = `
-                    <input type="text" class="styled-input med-name" placeholder="Medicine Name" style="flex: 2;">
-                    <input type="number" class="styled-input med-qty" placeholder="Qty" style="flex: 1;" value="1">
-                `;
-                medListContainer.appendChild(div);
-
-                // Animate in
-                if (window.gsap) gsap.from(div, { opacity: 0, y: 10, duration: 0.3 });
-            }
-        }
     });
 
-    // API & WebSocket Interaction
-    findDealBtn.addEventListener('click', async () => {
-        const persona = hiddenInput.value;
-        if (!persona) {
-            console.warn('Please select a persona first.');
-            // Shake button or show error visual could go here
-            return;
-        }
-
-        const payload = {
-            persona: persona,
-            timestamp: new Date().toISOString()
-        };
-
-        // Gather specific data
-        if (persona === 'shopper') {
-            payload.product = document.getElementById('product-name').value;
-        } else if (persona === 'rider') {
-            payload.pickup = document.getElementById('pickup-location').value;
-            payload.drop = document.getElementById('drop-location').value;
-
-            // New Fields
-            if (document.getElementById('rider-preference-value')) {
-                payload.preference = document.getElementById('rider-preference-value').value;
-            }
-            if (document.getElementById('rider-action-toggle')) {
-                const isBook = document.getElementById('rider-action-toggle').checked;
-                payload.action = isBook ? 'book' : 'compare';
+    // --- SUBMISSION LOGIC ---
+    if (findDealBtn) {
+        findDealBtn.addEventListener('click', async () => {
+            const persona = hiddenInput.value;
+            if (!persona) {
+                alert("Please select a persona first.");
+                return;
             }
 
-        } else if (persona === 'patient') {
-            // Collect Medicines
-            const medItems = document.querySelectorAll('.medicine-item');
-            const medList = [];
-            medItems.forEach(item => {
-                const name = item.querySelector('.med-name').value;
-                const qty = item.querySelector('.med-qty').value;
-                if (name) {
-                    medList.push({ name: name, qty: parseInt(qty) || 1 });
-                }
-            });
-            payload.medicine = medList; // Now Sending List[Dict]
+            // Reconstruct Payload Logic (Identical to original)
+            const payload = { persona: persona, timestamp: new Date().toISOString() };
 
-        } else if (persona === 'coordinator') {
-            payload.event_name = document.getElementById('event-name').value;
-
-            // Collect Guests
-            const guestItems = document.querySelectorAll('.guest-name');
-            const guestList = [];
-            guestItems.forEach(input => {
-                if (input.value) {
-                    guestList.push(input.value);
-                }
-            });
-            payload.guest_list = guestList; // Now Sending List[str]
-
-        } else if (persona === 'foodie') {
-            payload.food_item = document.getElementById('food-item').value;
-            // Toggle Logic
-            const isOrder = document.getElementById('foodie-action-toggle').checked;
-            payload.action = isOrder ? 'order' : 'search';
-        } else if (persona === 'traveller') {
-            payload.source = document.getElementById('trip-source').value;
-            payload.destination = document.getElementById('trip-dest').value;
-            payload.date = document.getElementById('trip-date').value;
-            payload.end_date = document.getElementById('trip-end-date').value; // New Field
-            payload.user_interests = document.getElementById('trip-interests').value;
-        }
-
-        logStatus(`Starting sequence for ${persona}...`);
-
-        try {
-            const response = await fetch('http://localhost:8000/task', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                logStatus('Task sent successfully. Enforcing protocol...');
-            } else {
-                logStatus('Server responded with error.', 'error');
+            if (persona === 'shopper') {
+                payload.product = document.getElementById('product-name').value;
+            } else if (persona === 'rider') {
+                payload.pickup = document.getElementById('pickup-location').value;
+                payload.drop = document.getElementById('drop-location').value;
+                if (riderPrefInput) payload.preference = riderPrefInput.value;
+                const toggle = document.getElementById('rider-action-toggle');
+                payload.action = (toggle && toggle.checked) ? 'book' : 'compare';
+            } else if (persona === 'patient') {
+                const medItems = document.querySelectorAll('.medicine-item');
+                const medList = [];
+                medItems.forEach(item => {
+                    const name = item.querySelector('.med-name').value;
+                    const qty = item.querySelector('.med-qty').value;
+                    if (name) medList.push({ name: name, qty: parseInt(qty) || 1 });
+                });
+                payload.medicine = medList;
+            } else if (persona === 'coordinator') {
+                payload.event_name = document.getElementById('event-name').value;
+                const guests = [];
+                document.querySelectorAll('.guest-name').forEach(i => { if (i.value) guests.push(i.value) });
+                payload.guest_list = guests;
+            } else if (persona === 'foodie') {
+                payload.food_item = document.getElementById('food-item').value;
+                const toggle = document.getElementById('foodie-action-toggle');
+                payload.action = (toggle && toggle.checked) ? 'order' : 'search';
+            } else if (persona === 'traveller') {
+                payload.source = document.getElementById('trip-source').value;
+                payload.destination = document.getElementById('trip-dest').value;
+                payload.date = document.getElementById('trip-date').value;
+                payload.end_date = document.getElementById('trip-end-date').value;
+                payload.user_interests = document.getElementById('trip-interests').value;
             }
-        } catch (error) {
-            logStatus(`Connection failed: ${error.message}. (Is backend running?)`, 'error');
-        }
-    });
 
-    // WebSocket Connection
-    function connectWebSocket() {
-        const ws = new WebSocket('ws://localhost:8000/ws');
-
-        ws.onopen = () => {
-            logStatus('Live Uplink Established.');
-        };
-
-        ws.onmessage = (event) => {
-            // New Server sends JSON, but might send strings in legacy cases
-            let data = event.data;
+            logStatus("Sending task...");
             try {
-                // Try to parse JSON
-                const parsed = JSON.parse(data);
+                // Post to 'create task' endpoint - Assuming existing server.py is still running
+                // Note: Original was to http://localhost:8000/task
+                await fetch('http://localhost:8002/task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                logStatus("Error sending task: " + e.message, 'error');
+            }
+        });
+    }
 
+
+    // --- WEBSOCKET CONNECTION ---
+    function connectWebSocket() {
+        const ws = new WebSocket('ws://localhost:8002/ws'); // Ensure port matches server (8002 from server.py content)
+        ws.onopen = () => logStatus('Connected to Neural Core.');
+        ws.onmessage = (event) => {
+            try {
+                const parsed = JSON.parse(event.data);
                 if (parsed.type === 'log') {
-                    logStatus(`> ${parsed.message}`);
-                }
-                else if (parsed.type === 'complete') {
-                    // Task Complete
-                    if (parsed.status === 'success') {
-                        showResultUI(parsed.result, "Operation Successful");
-                    } else {
-                        logStatus(`Task Failed: ${JSON.stringify(parsed.result)}`, 'error');
-                        if (parsed.result && parsed.result.error) {
-                            showResultUI(parsed.result, "Task Failed");
-                        }
+                    logStatus(parsed.message);
+                } else if (parsed.type === 'complete') {
+                    showResultUI(parsed.result);
+                    // If voice was active, maybe speak result?
+                    if (window.lastVoiceCommand) {
+                        speak("Task complete. " + (parsed.result.message || "Operation successful."));
+                        window.lastVoiceCommand = false;
                     }
                 }
-                else if (parsed.type === 'start') {
-                    logStatus(`> Task Started: ${parsed.persona} (ID: ${parsed.task_id})`);
-                }
-            } catch (e) {
-                // Fallback for raw strings (if any)
-                logStatus(`> ${data}`);
+            } catch (e) { console.log(event.data); }
+        };
+        ws.onclose = () => setTimeout(connectWebSocket, 3000);
+    }
+    connectWebSocket();
 
-                // Legacy Check for Task Completion (if server reverted)
-                if (typeof data === 'string' && data.includes("✅ Task Complete")) {
-                    try {
-                        const jsonStr = data.split("Result: ")[1];
-                        const result = JSON.parse(jsonStr);
-                        showResultUI(result);
-                    } catch (err) { console.error(err); }
+
+    // --- VOICE AGENT INTEGRATION ---
+    const voiceTrigger = document.getElementById('voice-trigger');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition && voiceTrigger) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        voiceTrigger.addEventListener('click', () => {
+            try {
+                recognition.start();
+                voiceTrigger.classList.add('voice-active');
+            } catch (e) {
+                console.log("Recognition already started");
+            }
+        });
+
+        recognition.onresult = async (event) => {
+            voiceTrigger.classList.remove('voice-active');
+            const transcript = event.results[0][0].transcript;
+            console.log("Voice Command:", transcript);
+            logStatus(`Voice Input: "${transcript}"`);
+
+            // Send to Chat API
+            window.lastVoiceCommand = true;
+
+            try {
+                // Call the /api/chat endpoint from server.py adaptation
+                // Actually server.py has /api/chat which uses GeneralAgent
+                const response = await fetch('http://localhost:8002/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: "voice-web-" + Date.now(),
+                        message: transcript
+                    })
+                });
+
+                const data = await response.json();
+                console.log("AI Response:", data);
+
+                // If it's a direct conversational response
+                if (data.response) {
+                    speak(data.response);
+                    logStatus("AI: " + data.response);
                 }
+
+            } catch (e) {
+                logStatus("Voice Error: " + e.message, 'error');
+                speak("I'm having trouble connecting to the core.");
             }
         };
 
-        ws.onerror = (error) => {
-            // Silently handle error to avoid console span if no server
-            console.log('WS Connect Error');
+        recognition.onerror = (event) => {
+            voiceTrigger.classList.remove('voice-active');
+            console.error("Speech Error", event.error);
         };
 
-        ws.onclose = () => {
-            logStatus('Uplink Disconnected. Retrying in 5s...');
-            setTimeout(connectWebSocket, 5000);
+        recognition.onend = () => {
+            voiceTrigger.classList.remove('voice-active');
         };
+    } else {
+        if (voiceTrigger) voiceTrigger.style.display = 'none'; // Hide if not supported
     }
 
-    function showResultUI(result, defaultMsg = "Operation Successful") {
-        const resultPanel = document.getElementById('result-panel');
-        const resultMsg = document.getElementById('result-message');
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+    }
 
-        if (resultPanel && resultMsg) {
-            resultPanel.classList.remove('hidden');
-            // Small timeout to allow display:block to apply before opacity transition
-            setTimeout(() => resultPanel.classList.add('active'), 50);
 
-            resultMsg.textContent = result.message || defaultMsg;
+    // --- UI UTILS ---
+    function logStatus(msg, type = 'info') {
+        const consoleEl = document.getElementById('result-message');
+        if (consoleEl) consoleEl.textContent = msg;
+        if (type === 'error') consoleEl.style.color = '#ff4d4d';
+        else consoleEl.style.color = 'var(--accent)';
+    }
 
-            // GSAP Emphasis
-            gsap.from(resultMsg, { scale: 1.5, color: "#4CAF50", duration: 0.5, ease: "back.out(1.7)" });
+    function showResultUI(result) {
+        const panel = document.getElementById('result-panel');
+        if (panel) {
+            panel.classList.remove('hidden');
+            logStatus(result.message || "Task Complete");
         }
     }
-
-    // Helper: Log Status
-    function logStatus(message, type = 'info') {
-        const timestamp = new Date().toLocaleTimeString();
-        if (type === 'error') {
-            console.error(`[${timestamp}] ${message}`);
-        } else {
-            console.log(`[${timestamp}] ${message}`);
-        }
-    }
-
-    // Initialize WS
-    connectWebSocket();
 });

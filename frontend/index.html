@@ -4,221 +4,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Persona Task Agent</title>
+    <title>TrioAgent | DroidRun Automation</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 
     <!-- CSS -->
     <link rel="stylesheet" href="styles.css">
 
-    <!-- GSAP -->
+    <!-- GSAP & Lenis -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
-
-    <!-- Lenis -->
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
 </head>
 
 <body>
 
+    <!-- Header -->
+    <header class="site-header">
+        <div class="logo">TrioAgent</div>
+        <nav class="nav-links">
+            <a href="app.html">Live Demo</a>
+            <a href="#">Documentation</a>
+            <a href="#">GitHub</a>
+        </nav>
+    </header>
 
-    <!-- Preloader -->
-    <div class="preloader">
-        <div class="counter">0</div>
-        <div class="preloader-overlay"></div>
-    </div>
-
-    <!-- Visual Debug Console -->
-    <div id="debug-console" style="display:none;"></div>
-
-    <main class="app-container">
-        <div class="layout-grid">
-            <header class="hero-section">
-                <h1 class="hero-title">
-                    <span class="reveal-text">Select</span>
-                    <span class="reveal-text">Your</span>
-                    <span class="reveal-text highlight">Agent</span>
-                </h1>
-                <p class="hero-subtitle">Autonomous Task Execution Protocol</p>
-            </header>
-
-            <section class="interaction-area">
-                <!-- Persona Selector -->
-                <div class="input-group selector-group">
-                    <label class="input-label">Identity</label>
-                    <div class="custom-dropdown-container">
-                        <input type="hidden" id="persona-select-value">
-                        <div class="dropdown-trigger" id="dropdown-trigger">
-                            <span class="selected-text">Select Persona</span>
-                            <div class="dropdown-arrow"></div>
-                        </div>
-                        <div class="dropdown-options">
-                            <div class="dropdown-option" data-value="shopper">Shopper</div>
-                            <div class="dropdown-option" data-value="rider">Rider</div>
-                            <div class="dropdown-option" data-value="patient">Patient</div>
-                            <div class="dropdown-option" data-value="coordinator">Event Coordinator</div>
-                            <div class="dropdown-option" data-value="foodie">Food Order</div>
-                            <div class="dropdown-option" data-value="traveller">Travel Planner</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dynamic Form Container -->
-                <div id="dynamic-form-container" class="form-container">
-                    <!-- Shopper Form -->
-                    <div class="form-content hidden" id="form-shopper">
-                        <div class="input-group">
-                            <label for="product-name" class="input-label">Target Product</label>
-                            <input type="text" id="product-name" class="styled-input"
-                                placeholder="e.g. Nike Air Max 90">
-                        </div>
-                    </div>
-
-                    <!-- Rider Form -->
-                    <div class="form-content hidden" id="form-rider">
-                        <div class="input-group">
-                            <label for="pickup-location" class="input-label">Origin</label>
-                            <input type="text" id="pickup-location" class="styled-input" placeholder="Pickup Address">
-                        </div>
-                        <div class="input-group">
-                            <label for="drop-location" class="input-label">Destination</label>
-                            <input type="text" id="drop-location" class="styled-input" placeholder="Drop Information">
-                        </div>
-
-                        <!-- Preferences -->
-                        <div class="input-group" style="margin-top: 1.5rem;">
-                            <label class="input-label" style="margin-bottom: 0.5rem;">Preference</label>
-                            <div class="pill-group" id="rider-preferences">
-                                <div class="pill-option active" data-value="cab">Cab</div>
-                                <div class="pill-option" data-value="auto">Auto</div>
-                                <div class="pill-option" data-value="sedan">Sedan</div>
-                            </div>
-                            <input type="hidden" id="rider-preference-value" value="cab">
-                        </div>
-
-                        <!-- Action Toggle -->
-                        <div class="input-group"
-                            style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem;">
-                            <label class="input-label" style="margin-bottom: 0;">Action</label>
-                            <div class="toggle-container">
-                                <span class="toggle-label" id="rider-toggle-text">Book Ride</span>
-                                <label class="switch">
-                                    <input type="checkbox" id="rider-action-toggle" checked>
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Patient Form -->
-                    <div class="form-content hidden" id="form-patient">
-                        <label class="input-label">Prescription List</label>
-                        <div id="medicine-list-container">
-                            <div class="input-group medicine-item"
-                                style="display: flex; gap: 10px; margin-bottom: 10px;">
-                                <input type="text" class="styled-input med-name"
-                                    placeholder="Medicine Name (e.g. Dolo 650)" style="flex: 2;">
-                                <input type="number" class="styled-input med-qty" placeholder="Qty" style="flex: 1;"
-                                    value="1">
-                            </div>
-                        </div>
-                        <button type="button" id="add-medicine-btn" class="secondary-button"
-                            style="margin-top: 5px; font-size: 0.8rem;">+ Add Medicine</button>
-                    </div>
-
-                    <!-- Coordinator Form -->
-                    <div id="form-coordinator" class="form-content hidden">
-                        <div class="input-group">
-                            <label class="input-label">Event Name</label>
-                            <input type="text" id="event-name" placeholder="Birthday Bash" class="styled-input">
-                        </div>
-                        <div class="input-group">
-                            <label class="input-label">Guest List</label>
-                            <div id="guest-list-container">
-                                <div class="guest-item" style="margin-bottom: 10px;">
-                                    <input type="text" class="styled-input guest-name"
-                                        placeholder="Guest Name (as in Contacts)">
-                                </div>
-                            </div>
-                            <button type="button" id="add-guest-btn" class="secondary-button"
-                                style="margin-top: 5px; font-size: 0.8rem;">+ Add Guest</button>
-                        </div>
-                    </div>
-
-                    <!-- Foodie Form -->
-                    <div id="form-foodie" class="form-content hidden">
-                        <div class="input-group">
-                            <label for="food-item" class="input-label">Craving</label>
-                            <input type="text" id="food-item" class="styled-input" placeholder="e.g. Masala Dosa">
-                        </div>
-                        <div class="input-group"
-                            style="display: flex; align-items: center; justify-content: space-between; margin-top: 1rem;">
-                            <label class="input-label" style="margin-bottom: 0;">Action</label>
-                            <div class="toggle-container">
-                                <span class="toggle-label" id="toggle-status-text">Find Best Deal</span>
-                                <label class="switch">
-                                    <input type="checkbox" id="foodie-action-toggle">
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Traveller Form (Moved INSIDE) -->
-                    <div id="form-traveller" class="form-content hidden">
-                        <div class="input-group">
-                            <label class="input-label">Source</label>
-                            <input type="text" id="trip-source" placeholder="e.g. New Delhi" class="styled-input">
-                        </div>
-                        <div class="input-group">
-                            <label class="input-label">Destination</label>
-                            <input type="text" id="trip-dest" placeholder="e.g. Goa" class="styled-input">
-                        </div>
-                        <div class="input-group" style="display: flex; gap: 10px;">
-                            <div style="flex: 1;">
-                                <label class="input-label">Start Date</label>
-                                <input type="text" id="trip-date" placeholder="YYYY-MM-DD" class="styled-input">
-                            </div>
-                            <div style="flex: 1;">
-                                <label class="input-label">End Date</label>
-                                <input type="text" id="trip-end-date" placeholder="YYYY-MM-DD" class="styled-input">
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label class="input-label">Interests</label>
-                            <input type="text" id="trip-interests" placeholder="Beaches, Parties, Food"
-                                class="styled-input">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Action Button (Correctly Placed in Flow) -->
-                <div class="action-wrapper" style="flex-direction: column; align-items: center; gap: 1rem;">
-                    <button id="find-deal-btn" class="cta-button">
-                        <span class="btn-text">Find Best Deal</span>
-                        <div class="btn-fill"></div>
-                    </button>
-
-                    <a href="/dashboard.html" class="dashboard-link"
-                        style="text-decoration: none; color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.3s;">
-                        Go to Mission Control &rarr;
-                    </a>
-                </div>
-
-                <!-- Result Display (Correctly Placed) -->
-                <div id="result-panel" class="result-panel hidden">
-                    <h3 class="result-title">Task Complete</h3>
-                    <p id="result-message" class="result-message">Waiting...</p>
-                    <div id="result-details" class="result-details"></div>
-                </div>
-            </section>
+    <!-- Hero Section -->
+    <section class="hero container">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                Automate Everything.<br>
+                <span class="highlight">Think Less.</span>
+            </h1>
+            <p class="hero-desc">
+                The autonomous task execution protocol for the DroidRun ecosystem.
+                Seamlessly orchestrate agents for commerce, travel, and logistics with a single command.
+            </p>
+            <div class="cta-group">
+                <button class="btn-primary" onclick="window.location.href='app.html'">Get Started</button>
+                <button class="btn-secondary">Read Documentation</button>
+            </div>
         </div>
-        <!-- Live Status Log (Removed from UI) -->
-    </main>
+    </section>
+
+    <!-- Product Overview -->
+    <section class="overview section-spacer container">
+        <div class="demo-grid">
+            <h2>Designed for<br>Intelligence.</h2>
+            <p style="margin-top: 10px;">
+                TrioAgent isn't just a chatbot. It's an actionable intelligence layer that interfaces directly with
+                real-world APIs. Whether you need to book a ride, order food across platforms, or plan a complex
+                itinerary, our agents handle the negotiation and execution.
+            </p>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features section-spacer container">
+        <div class="feature-list">
+            <div class="feature-item">
+                <span class="feature-num">01</span>
+                <span class="feature-title">Multi-Agent Intelligence</span>
+                <span class="feature-desc">Orchestrates specialized sub-agents for specialized tasks.</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-num">02</span>
+                <span class="feature-title">Real-Time Execution</span>
+                <span class="feature-desc">Live WebSocket feedback loop for every action taken.</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-num">03</span>
+                <span class="feature-title">Zero Manual Overhead</span>
+                <span class="feature-desc">Delegate complex workflows with a single natural language input.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="container">
+        <div class="footer-col">
+            <span class="logo">TrioAgent</span>
+            <p>Built for the Future of Work.</p>
+        </div>
+        <div class="footer-col">
+            <!-- Socials -->
+        </div>
+    </footer>
 
     <script src="script.js"></script>
 </body>
