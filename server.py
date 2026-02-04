@@ -138,9 +138,11 @@ class ChatPayload(BaseModel):
     session_id: str
     message: str
     
+from fastapi.responses import RedirectResponse
+
 @app.get("/")
 async def root():
-    return {"status": "DroidRun Server Running", "guide": "Access Voice OS at /static/accessibility.html"}
+    return RedirectResponse(url="/static/index.html")
 
 # --- CHAT ENDPOINT ---
 general_agent = GeneralAgent()

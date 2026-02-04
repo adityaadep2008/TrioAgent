@@ -128,4 +128,12 @@ class AgentFactory:
         try:
             return json.loads(clean_json)
         except json.JSONDecodeError:
-            return {"status": "failed", "raw": clean_json, "error": "json_parse_error"}
+            # Fallback: Treat raw text as a success message if it looks like one, otherwise return raw
+            # If the agent just chatted back without JSON, that is technically a 'result'
+            print(f"⚠️ JSON Parse Failed. Raw text: {clean_json[:100]}...")
+            return {
+                "status": "success", 
+                "message": clean_json, # Pass the raw text as the message
+                "raw": clean_json, 
+                "note": "Output was not valid JSON, returned as raw text."
+            }

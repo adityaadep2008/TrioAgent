@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,7 +44,8 @@
         }
 
         .agent-msg {
-            background-color: #007bff; /* High contrast blue */
+            background-color: #007bff;
+            /* High contrast blue */
             align-self: flex-start;
             border-bottom-left-radius: 5px;
         }
@@ -54,7 +56,7 @@
             display: flex;
             justify-content: center;
             background-color: #1e1e1e;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
         }
 
         #mic-btn {
@@ -78,14 +80,43 @@
         }
 
         #mic-btn.listening {
-            animation: pulse 1.5s infinite;
+            animation: breathe 2s infinite;
+            background-color: #f1c40f;
+            /* Yellow/Orange for Waiting */
+        }
+
+        #mic-btn.speaking {
+            animation: pulse 1s infinite;
             background-color: #2ed573;
+            /* Green for Speaking */
+        }
+
+        @keyframes breathe {
+            0% {
+                box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 10px rgba(241, 196, 15, 0.2);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
+            }
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(46, 213, 115, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+            0% {
+                box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 20px rgba(46, 213, 115, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(46, 213, 115, 0);
+            }
         }
 
         #status-text {
@@ -96,6 +127,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div id="chat-container">
@@ -110,7 +142,7 @@
     <script>
         // Session ID
         const sessionId = "sess_" + Math.random().toString(36).substr(2, 9);
-        
+
         // DOM Elements
         const micBtn = document.getElementById('mic-btn');
         const statusText = document.getElementById('status-text');
@@ -122,11 +154,17 @@
             alert("Voice features not supported in this browser. Please use Chrome.");
         }
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true; // KEEP LISTENING
+        recognition.interimResults = true; // Show text as you speak
         recognition.lang = 'en-US';
 
-        let isListening = false;
+        // --- CONFIGURATION ---
+        const SILENCE_DELAY = 3000; // 3 seconds of silence to finalize
+
+        // --- STATE MANAGEMENT ---
+        let logicalListeningState = false; // The source of truth for "Are we in a session?"
+        let silenceTimeoutId = null;
+        let finalTranscript = '';
 
         // TTS Setup
         const synth = window.speechSynthesis;
@@ -147,49 +185,133 @@
             div.scrollIntoView({ behavior: 'smooth' });
         }
 
-        micBtn.onclick = () => {
-            if (isListening) {
-                recognition.stop();
-            } else {
-                recognition.start();
-            }
-        };
+        // --- CORE CONTROL FUNCTIONS ---
 
-        recognition.onstart = () => {
-            isListening = true;
+        function startSession() {
+            if (logicalListeningState) return; // Already running
+
+            logicalListeningState = true;
+            finalTranscript = '';
+
+            // update UI
             micBtn.classList.add('listening');
-            micBtn.textContent = '🛑'; // Stop icon
-            statusText.textContent = "Listening...";
-        };
+            micBtn.textContent = '🛑';
+            statusText.textContent = "Listening... (Go ahead)";
 
-        recognition.onend = () => {
-            isListening = false;
+            // Start API
+            try {
+                recognition.start();
+            } catch (e) {
+                console.warn("API Start Error (clean):", e);
+            }
+        }
+
+        function endSession() {
+            console.log("Ending Session. Logical State -> False");
+            logicalListeningState = false;
+            clearTimeout(silenceTimeoutId);
+
+            // Stop API
+            recognition.stop();
+
+            // Update UI
             micBtn.classList.remove('listening');
             micBtn.textContent = '🎤';
             statusText.textContent = "Processing...";
+
+            // Process Result
+            const textToSend = finalTranscript.trim();
+            if (textToSend.length > 0) {
+                sendToBackend(textToSend);
+            } else {
+                statusText.textContent = "Tap to Speak";
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+
+        micBtn.onclick = () => {
+            if (logicalListeningState) {
+                // Manual Stop
+                endSession();
+            } else {
+                // Manual Start
+                startSession();
+            }
         };
 
-        recognition.onresult = async (event) => {
-            const transcript = event.results[0][0].transcript;
-            console.log("User said:", transcript);
-            
-            addMessage(transcript, 'user');
+        // --- SPEECH API EVENTS ---
+
+        recognition.onstart = () => {
+            console.log("API: Started");
+            // We do NOT update UI here anymore to avoid flickering. 
+            // UI is controlled by startSession/endSession.
+        };
+
+        recognition.onend = () => {
+            console.log("API: Ended. Logical State:", logicalListeningState);
+
+            if (logicalListeningState) {
+                // The browser stopped listening (timeout/network), but WE are not done.
+                // Restart immediately.
+                console.log("Creating seamless restart...");
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error("Restart failed:", e);
+                    // If we can't restart, we must abort
+                    logicalListeningState = false;
+                    statusText.textContent = "Error: Mic stopped unexpectedly.";
+                    micBtn.classList.remove('listening');
+                    micBtn.textContent = '🎤';
+                }
+            } else {
+                // Clean exit, nothing to do here as endSession handled the cleanup
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            // Visual Update
+            const display = (finalTranscript + interimTranscript).trim() || "Listening...";
+            statusText.textContent = display.slice(-50);
+
+            // RESET SILENCE TIMER
+            // Every time the user speaks, we push back the finish line
+            clearTimeout(silenceTimeoutId);
+            silenceTimeoutId = setTimeout(() => {
+                console.log("Silence limit reached (" + SILENCE_DELAY + "ms). Auto-submitting.");
+                endSession();
+            }, SILENCE_DELAY);
+        };
+
+        async function sendToBackend(text) {
+            console.log("User said:", text);
+            addMessage(text, 'user');
             statusText.textContent = "Thinking...";
 
-            // Send to Backend
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, message: transcript })
+                    body: JSON.stringify({ session_id: sessionId, message: text })
                 });
-                
+
                 const data = await res.json();
                 const reply = data.response;
-                
+
                 addMessage(reply, 'agent');
                 speak(reply);
-                
+
                 statusText.textContent = "Tap to Speak";
 
             } catch (err) {
@@ -197,16 +319,16 @@
                 addMessage("I'm having trouble connecting to the server.", 'agent');
                 statusText.textContent = "Error";
             }
-        };
+        }
 
         recognition.onerror = (event) => {
             console.error("Speech Error", event.error);
-            statusText.textContent = "Error listening. Try again.";
-            isListening = false;
-            micBtn.classList.remove('listening');
-            micBtn.textContent = '🎤';
+            // Ignore 'no-speech' errors which happen if silence is detected by browser
+            if (event.error !== 'no-speech') {
+                statusText.textContent = "Error listening. Try again.";
+            }
         };
-
     </script>
 </body>
+
 </html>

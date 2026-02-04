@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 try:
     from droidrun.agent.droid.droid_agent import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.tools.adb import AdbTools
+    from droidrun import AdbTools
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found.")
     sys.exit(1)

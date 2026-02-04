@@ -11,8 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         patient: document.getElementById('form-patient'),
         coordinator: document.getElementById('form-coordinator'),
         foodie: document.getElementById('form-foodie'),
-        traveller: document.getElementById('form-traveller'),
-        universal: document.getElementById('form-universal')
+        traveller: document.getElementById('form-traveller')
     };
     const findDealBtn = document.getElementById('find-deal-btn');
 
@@ -164,8 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
             newText = "Plan Best Trip";
         } else if (persona === 'rider') {
             newText = "Find Best Ride";
-        } else if (persona === 'universal') {
-            newText = "Execute Task";
         }
 
         // Smooth Text Transition
@@ -390,8 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
             payload.date = document.getElementById('trip-date').value;
             payload.end_date = document.getElementById('trip-end-date').value; // New Field
             payload.user_interests = document.getElementById('trip-interests').value;
-        } else if (persona === 'universal') {
-            payload.instruction = document.getElementById('universal-instruction').value;
         }
 
         logStatus(`Starting sequence for ${persona}...`);
