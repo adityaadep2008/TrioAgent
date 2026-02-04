@@ -1,123 +1,95 @@
-# DroidRun Auto: Agentic OS 🤖📱
+# TrioAgent: The Agentic OS for Everyone 🚀
 
-**Voice-Activated Autonomous Mobile Agents for Accessibility & Automation**
+> **"Technology should bridge gaps, not create them."**
 
-DroidRun Auto is an "Agentic OS" that turns any Android device into a helpful assistant. It uses **Google Gemini 2.5 Flash** to understand your natural language commands and executes them on real mobile apps (Uber, Zomato, Amazon, Apollo, etc.) using either a **Local Android Device** (via DroidRun) or the **MobileRun Cloud Fleet**.
-
-Designed for **Accessibility**, the system features a high-contrast **Voice Interface** that allows elderly or disabled users to complete complex tasks just by speaking.
+TrioAgent is a next-generation **Agentic Operating System** designed to make digital life accessible to seniors and individuals with physical disabilities. By replacing complex app navigation with a **Voice-First Autonomous Interface**, we empower everyone to command the digital economy effortlessly.
 
 ---
 
-## 🌟 Key Features
+## 🌟 The Problem
+Modern smartphones are powerful but overwhelming. For an elderly user or someone with limited dexterity, ordering medicine or booking a ride involves navigating a maze of small buttons, multiple apps, and complex flows. This leads to **Digital Exclusion**.
 
-*   **🎙️ Voice Agentic OS**:
-    *   **Speak**: "Book a cab to the airport."
-    *   **Listen**: The agent replies via Text-to-Speech: "Okay, finding the best ride..."
-    *   **Conversational**: "Which airport?" -> "Mumbai Terminal 2."
-*   **🛒 Shopping**: Finds and buys products on Amazon/Flipkart.
-*   **🍔 Food Ordering**: Compares Swiggy vs Zomato and places orders.
-*   **💊 Medicine**: Finds medicines on PharmEasy/Apollo.
-*   **🚕 Ride Booking**: Autosurfs Uber/Ola to find the cheapest ride.
-*   **✈️ Travel**: Plans full trips (Flight + Hotel + Cab) on MakeMyTrip/Booking.com.
-*   **☁️ Hybrid Execution**:
-    *   **Local Mode**: Uses your USB-connected Phone.
-    *   **Cloud Mode**: Uses `MobileRun` virtual devices in the cloud.
+## 💡 The Solution
+**TrioAgent** unifies these services into a single, intent-based interface.
+- 🗣️ **Just Speak:** "Book a ride to the hospital" or "Order Fried Rice from Zomato".
+- 🤖 **Autonomous Execution:** Our backend agents (powered by **Gemini 1.5 Flash**) physically interact with real Android apps (Uber, Apollo, Swiggy) to get the job done.
+- 🧠 **Context Aware:** It remembers your preferences and previous requests (e.g., "Order that from Zomato" refers to the dish you just mentioned).
 
 ---
 
-## 🛠️ Architecture
+## ✨ Key Features
 
-*   **Brain**: `agents/general_agent.py` - Understanding intent & context.
-*   **Router**: `agents/agent_factory.py` - Smartly dispatching tasks to Cloud or Local.
-*   **API**: FastAPI Server (`server.py`) exposing `/api/chat`.
-*   **UI**: `frontend/accessibility.html` (Voice) & `frontend/index.html` (Dashboard).
-*   **Core**: DroidRun (Local) & MobileRun (Cloud).
+1.  **Voice-First Interface**:
+    - High-contrast, large-button UI tailored for accessibility.
+    - Real-time transcription and feedback.
+    - Completely hands-free operation.
+
+2.  **Multi-Agent Orchestration**:
+    - **Commerce Agent**: Comparison shops and orders food/products (Amazon, Flipkart, Zomato, Swiggy).
+    - **Ride Agent**: Compares and books rides (Uber, Ola).
+    - **Pharmacy Agent**: Finds the best medicine prices (PharmEasy, Apollo).
+    - **Voyager Agent**: Plans entire trips (Flights + Hotels + Cabs).
+
+3.  **Manual "Mission Control"**:
+    - A visual dashboard for power users to oversee and tweak complex tasks.
+
+---
+
+## 🛠️ Technology Stack
+- **Frontend**: HTML5, Vanilla JS (for maximum compatibility), WebSockets.
+- **Backend**: Python, FastAPI.
+- **AI Core**: Google Gemini 1.5 Flash (via `google-generativeai`).
+- **Automation**: `DroidRun` (Custom framework for Android UI interaction).
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
-*   **Python 3.10+**
-*   **Android Device** (Enable "USB Debugging" & connect via USB).
-*   **API Keys**:
-    *   Google Gemini API Key (for intelligence).
-    *   MobileRun API Key (optional, for cloud mode).
+### Prerequisites
+- Python 3.9+
+- An Android Device (connected via USB) OR Cloud Device credentials.
 
-### 2. Installation
-Clone the repo and install dependencies:
-```bash
-git clone https://github.com/your-username/devrunauto.git
-cd devrunauto
-pip install -r requirements.txt
-```
-*You should see "DroidRun Server Running" logs.*
+### Installation
 
-### 3. Configuration (.env)
-Create a `.env` file in the root folder (copy from `.env.example`):
-```bash
-cp .env.example .env
-```
-Edit `.env` with your keys:
-```env
-# Required for Intelligence
-GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
+1.  **Clone the Repo**
+    ```bash
+    git clone https://github.com/adityaadep2008/TrioAgent.git
+    cd TrioAgent
+    ```
 
-# Mode Selection
-# True = Cloud (Requires MobileRun Key)
-# False = Local (Uses USB Device)
-USE_MOBILE_RUN=False
-MOBILERUN_API_KEY=your_mobilerun_api_key_here
-```
+2.  **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-### 4. Running the System
+3.  **Environment Setup**
+    - Copy `.env.example` to `.env`:
+      ```bash
+      cp .env.example .env
+      ```
+    - Edit `.env` and add your **GEMINI_API_KEY**.
 
-#### Option A: The Accessibility Voice OS (Recommended)
-1.  Start the Server:
+### Running the System
+
+1.  **Start the Server**
     ```bash
     python server.py
     ```
-2.  Open your browser to:
-    👉 **http://localhost:8000/static/accessibility.html**
-3.  Click the **Microphone Button** and speak!
-    *   *"I want to order a Chicken Burger."*
-    *   *"Book a cab to Cyber Hub."*
 
-#### Option B: Individual Agents (CLI)
-You can run specific task agents directly from the terminal:
-```bash
-# Shop for iPhones
-python commerce_agent.py --action search --query "iPhone 15"
+2.  **Launch the Interface**
+    Open your browser and navigate to:
+    `http://localhost:8002/static/app.html`
 
-# Compare Rides
-python ride_comparison_agent.py --pickup "Home" --drop "Office"
-
-# Send WhatsApp Invite
-python event_coordinator_agent.py --contacts "Mom, Dad" --event "Dinner" ...
-```
+3.  **Speak!**
+    Click the microphone and say: *"Order me a pizza."*
 
 ---
 
-## 📂 Directory Structure
-
-| File/Folder | Description |
-| :--- | :--- |
-| `server.py` | Main Backend API & WebSocket Server. |
-| `agents/general_agent.py` | The "Brain" that handles conversation & routing. |
-| `agents/agent_factory.py` | Decides whether to run on Cloud vs Local. |
-| `agents/mobile_run_wrapper.py` | Wrapper for Cloud execution. |
-| `frontend/accessibility.html` | The Voice-First UI for accessibility. |
-| `commerce_agent.py` | Shopping/Food Agent. |
-| `ride_comparison_agent.py` | Uber/Ola Agent. |
-| `requirements.txt` | Dependency list. |
+## 👥 Use Cases
+- **Grandparents**: "Call my grandson" or "Order my heart medicine."
+- **Visually Impaired**: Full auditory feedback for all actions.
+- **Busy Professionals**: "Book the cheapest cab to the airport" (Agents compare Uber/Ola automatically).
 
 ---
 
-## ⚠️ Important Notes
-*   **Real Actions**: In "Local Mode", this software clicks real buttons on your phone. Watch it carefully!
-*   **Permissions**: Ensure your phone stays unlocked or has "Stay Awake" enabled during execution.
-*   **Cloud Mode**: MobileRun execution relies on having credits/quota.
-
----
-*Built with ❤️ for AI Agents Hackathon 2026*
+made with ❤️ by **Team TrioAgent**

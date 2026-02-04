@@ -121,57 +121,29 @@ class CommerceAgent:
             api_key=api_key
         )
 
-        # Create tools instance
-        tools = await AdbTools.create()
-        
-        # Mapping app names to package names
-        package_names = {
-            "Amazon": "com.amazon.mShop.android.shopping",
-            "Flipkart": "com.flipkart.android",
-            # Add other app mappings as needed
-        }
-
-        # If a URL is provided, instruct DroidRun to open it directly
-        if url:
-            try:
-                target_package = package_names.get(app_name)
-                if not target_package:
-                    raise ValueError(f"Unknown app_name for direct URL: {app_name}")
-
-                # ADB command to start an activity to view the URL in the specified app
-                adb_command = (
-                    f"am start -a android.intent.action.VIEW "
-                    f"-d \"{url}\" "
-                    f"{target_package}"
-                )
-                await tools.shell(adb_command)
-                print(f"[CommerceAgent] Opened URL {url} in {app_name} via ADB shell.")
-
-                # After opening URL, the DroidAgent's goal becomes to extract info from the page
-                goal_for_agent = (
-                    f"Visually SCAN the product details page. "
-                    f"Extract the following details for the item: "
-                    f"1. Product Name (title) "
-                    f"2. Price (numeric value) "
-                    f"3. Rating "
-                    f"4. Restaurant Name "
-                    f"Return a strict JSON object with keys: 'title', 'price', 'rating', 'restaurant'. "
-                    f"If details cannot be found, return status='failed'. "
-                )
-                goal = goal_for_agent # Override the main goal for DroidAgent
-            except Exception as e:
-                print(f"[Error] Failed to open URL {url} directly: {e}")
-                return {"platform": app_name, "status": "failed", "data": {"error": str(e)}}
-
-        # Instantiate DroidAgent directly with required args for v0.3.2
-        # signature: (goal, llm, tools, personas, max_steps, timeout, vision, reasoning, reflection, ...)
-        agent = DroidAgent(
-            goal=goal,
-            llm=llm,
-            tools=tools,
-            vision=True,     # Enabled as per original intention
-            reasoning=False,  # AgentConfig had reasoning=True
-        )
+        # Instantiate DroidAgent using proper Config (v0.3.2 style)
+        try:
+             from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+             
+             manager_config = ManagerConfig(vision=True)
+             executor_config = ExecutorConfig(vision=True)
+             agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
+             telemetry_config = TelemetryConfig(enabled=False)
+             config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
+             
+             agent = DroidAgent(
+                goal=goal,
+                llms=llm,
+                config=config
+             )
+        except ImportError:
+             print("Fallback: Config classes not found, trying legacy init...")
+             agent = DroidAgent(
+                goal=goal,
+                llm=llm,
+                vision=True,
+                reasoning=False
+             )
 
         # 3. Execute
         start_data = {"platform": app_name, "status": "failed", "data": {}}

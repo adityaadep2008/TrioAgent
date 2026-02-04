@@ -93,6 +93,7 @@ class RideComparisonAgent:
             )
 
         # --- Professional Config Setup ---
+        # --- Professional Config Setup ---
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
 
@@ -102,15 +103,28 @@ class RideComparisonAgent:
             api_key=api_key
         )
 
-        tools = await AdbTools.create()
-
-        agent = DroidAgent(
-            goal=goal,
-            llm=llm,
-            tools=tools,
-            vision=True,
-            reasoning=False
-        )
+        try:
+             from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+             
+             manager_config = ManagerConfig(vision=True)
+             executor_config = ExecutorConfig(vision=True)
+             agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
+             telemetry_config = TelemetryConfig(enabled=False)
+             config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
+             
+             agent = DroidAgent(
+                goal=goal,
+                llms=llm,
+                config=config
+             )
+        except ImportError:
+             print("Fallback: Config classes not found, trying legacy init...")
+             agent = DroidAgent(
+                goal=goal,
+                llm=llm,
+                vision=True,
+                reasoning=False
+             )
 
         result_data = {"app": app_name, "status": "failed", "data": {}, "numeric_price": float('inf')}
 
