@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanjeevani Voice OS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #chat-container {
+            flex: 1;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            padding: 15px 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            max-width: 80%;
+        }
+
+        .user-msg {
+            background-color: #333;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .agent-msg {
+            background-color: #007bff; /* High contrast blue */
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        #controls {
+            width: 100%;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            background-color: #1e1e1e;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
+
+        #mic-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background-color: #ff4757;
+            color: white;
+            font-size: 3rem;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(255, 71, 87, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #mic-btn:active {
+            transform: scale(0.95);
+        }
+
+        #mic-btn.listening {
+            animation: pulse 1.5s infinite;
+            background-color: #2ed573;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(46, 213, 115, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+        }
+
+        #status-text {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <div class="message agent-msg">Hi! I am Sanjeevani. Tap the button and tell me what you need.</div>
+    </div>
+
+    <div id="status-text">Tap to Speak</div>
+    <div id="controls">
+        <button id="mic-btn">🎤</button>
+    </div>
+
+    <script>
+        // Session ID
+        const sessionId = "sess_" + Math.random().toString(36).substr(2, 9);
+        
+        // DOM Elements
+        const micBtn = document.getElementById('mic-btn');
+        const statusText = document.getElementById('status-text');
+        const chatContainer = document.getElementById('chat-container');
+
+        // Speech Recognition Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Voice features not supported in this browser. Please use Chrome.");
+        }
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        let isListening = false;
+
+        // TTS Setup
+        const synth = window.speechSynthesis;
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.pitch = 1;
+            utterance.rate = 1;
+            synth.speak(utterance);
+        }
+
+        function addMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}-msg`;
+            div.textContent = text;
+            chatContainer.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        micBtn.onclick = () => {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        };
+
+        recognition.onstart = () => {
+            isListening = true;
+            micBtn.classList.add('listening');
+            micBtn.textContent = '🛑'; // Stop icon
+            statusText.textContent = "Listening...";
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            micBtn.classList.remove('listening');
+            micBtn.textContent = '🎤';
+            statusText.textContent = "Processing...";
+        };
+
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            console.log("User said:", transcript);
+            
+            addMessage(transcript, 'user');
+            statusText.textContent = "Thinking...";
+
+            // Send to Backend
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message: transcript })
+                });
+                
+                const data = await res.json();
+                const reply = data.response;
+                
+                addMessage(reply, 'agent');
+                speak(reply);
+                
+                statusText.textContent = "Tap to Speak";
+
+            } catch (err) {
+                console.error(err);
+                addMessage("I'm having trouble connecting to the server.", 'agent');
+                statusText.textContent = "Error";
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech Error", event.error);
+            statusText.textContent = "Error listening. Try again.";
+            isListening = false;
+            micBtn.classList.remove('listening');
+            micBtn.textContent = '🎤';
+        };
+
+    </script>
+</body>
+</html>
