@@ -4,41 +4,50 @@ import argparse
 import asyncio
 import re
 import sys
+from typing import Optional
 from dotenv import load_dotenv
 
-# Import MobileRun Wrapper
-try:
-    from agents.mobile_run_wrapper import MobileRunWrapper
-except ImportError:
-    # Handle imports from root
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
-    try:
-        from agents.mobile_run_wrapper import MobileRunWrapper
-    except ImportError:
-         print("CRITICAL ERROR: 'agents.mobile_run_wrapper' not found.")
-         sys.exit(1)
+import asyncio.subprocess
+# try:
+from droidrun.agent.droid.droid_agent import DroidAgent
+from droidrun.tools.adb import AdbTools
+# except ImportError:
+#     print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
+#     print("Please ensure you have installed it: pip install droidrun")
+#     sys.exit(1)
 
 # Load environment variables
 load_dotenv()
 
 class CommerceAgent:
     """
-    Professional Commerce Agent using MobileRun Cloud (with DroidRun Fallback).
+    Professional Commerce Agent using DroidRun Framework.
+    Follows the 'Brain' (Host) and 'Senses' (Portal) architecture.
     """
     
-    def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
-        self.runner = MobileRunWrapper(provider=provider, model=model)
+    def __init__(self, provider="gemini", model="gemini-1.5-flash"):
+        self.provider = provider
+        self.model = model
+        self._ensure_api_keys()
+
+    def _ensure_api_keys(self):
+        if self.provider == "gemini" and not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+             # Fallback check
+             print("[Warn] GEMINI_API_KEY not found in env, checking GOOGLE_API_KEY")
 
     def _parse_price(self, price_str):
         """Robust price parsing utility."""
         if not price_str: return float('inf')
         try:
             raw = str(price_str).strip()
+            # print(f"[DEBUG] Parsing Price Raw: '{raw}'") # User requested investigation of mismatched logs
+            
             clean = raw.lower().replace(',', '').replace('₹', '').replace('rs', '').replace('rs.', '').strip()
             match = re.search(r'\d+(\.\d+)?', clean)
             
             if match:
                  val = float(match.group())
+                 # print(f"[DEBUG] Parsed Value: {val}")
                  return val
             else:
                  print(f"[Warn] Could not extract number from price string: '{raw}'")
@@ -47,14 +56,30 @@ class CommerceAgent:
             print(f"[Error] Price Parse Failed for '{price_str}': {e}")
             return float('inf')
 
-    async def execute_task(self, app_name: str, query: str, item_type: str, action: str = "search", target_item: str = None) -> dict:
+    async def execute_task(self, app_name: str, query: Optional[str] = None, item_type: str = "product", action: str = "search", target_item: Optional[str] = None, url: Optional[str] = None) -> dict:
         """
-        Spawns a MobileRun/DroidAgent to execute a specific commerce task.
+        Spawns a DroidAgent to execute a specific commerce task.
+        Uses Vision capabilities for better UI understanding.
+        Action: 'search' (compare prices) or 'order' (buy item via COD).
         """
         print(f"\n[CommerceAgent] Initializing Task for: {app_name} (Action: {action})")
         
-        # 1. Define Goal
-        if action == "order":
+        # 1. Define Goal (Natural Language with Structural Constraints)
+        if url:
+            goal = (
+                f"Open the app '{app_name}'. "
+                f"Navigate directly to the URL: '{url}'. "
+                f"Wait for the page to load. "
+                f"Visually SCAN the product details page. "
+                f"Extract the following details for the item: "
+                f"1. Product Name (title) "
+                f"2. Price (numeric value) "
+                f"3. Rating "
+                f"4. Restaurant Name "
+                f"Return a strict JSON object with keys: 'title', 'price', 'rating', 'restaurant'. "
+                f"If the page fails to load or details cannot be found, return status='failed'. "
+            )
+        elif action == "order":
             item_instruction = f"find the item '{target_item}'" if target_item else "Select the first relevant item"
             goal = (
                 f"Open the app '{app_name}'. "
@@ -85,29 +110,122 @@ class CommerceAgent:
                 f"If no exact match is found, find the closest match. "
             )
 
-        # 2. Execute via Wrapper
-        start_data = {"platform": app_name, "status": "failed", "data": {}}
+        # 2. Configure Agent (Professional Pattern)
+        # Using load_llm to avoid DroidrunConfig error
+        from droidrun.agent.utils.llm_picker import load_llm
+
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        llm = load_llm(
+            provider_name="GoogleGenAI",
+            model=self.model,
+            api_key=api_key
+        )
+
+        # Create tools instance
+        tools = await AdbTools.create()
         
+        # Mapping app names to package names
+        package_names = {
+            "Amazon": "com.amazon.mShop.android.shopping",
+            "Flipkart": "com.flipkart.android",
+            # Add other app mappings as needed
+        }
+
+        # If a URL is provided, instruct DroidRun to open it directly
+        if url:
+            try:
+                target_package = package_names.get(app_name)
+                if not target_package:
+                    raise ValueError(f"Unknown app_name for direct URL: {app_name}")
+
+                # ADB command to start an activity to view the URL in the specified app
+                adb_command = (
+                    f"am start -a android.intent.action.VIEW "
+                    f"-d \"{url}\" "
+                    f"{target_package}"
+                )
+                await tools.shell(adb_command)
+                print(f"[CommerceAgent] Opened URL {url} in {app_name} via ADB shell.")
+
+                # After opening URL, the DroidAgent's goal becomes to extract info from the page
+                goal_for_agent = (
+                    f"Visually SCAN the product details page. "
+                    f"Extract the following details for the item: "
+                    f"1. Product Name (title) "
+                    f"2. Price (numeric value) "
+                    f"3. Rating "
+                    f"4. Restaurant Name "
+                    f"Return a strict JSON object with keys: 'title', 'price', 'rating', 'restaurant'. "
+                    f"If details cannot be found, return status='failed'. "
+                )
+                goal = goal_for_agent # Override the main goal for DroidAgent
+            except Exception as e:
+                print(f"[Error] Failed to open URL {url} directly: {e}")
+                return {"platform": app_name, "status": "failed", "data": {"error": str(e)}}
+
+        # Instantiate DroidAgent directly with required args for v0.3.2
+        # signature: (goal, llm, tools, personas, max_steps, timeout, vision, reasoning, reflection, ...)
+        agent = DroidAgent(
+            goal=goal,
+            llm=llm,
+            tools=tools,
+            vision=True,     # Enabled as per original intention
+            reasoning=False,  # AgentConfig had reasoning=True
+        )
+
+        # 3. Execute
+        start_data = {"platform": app_name, "status": "failed", "data": {}}
         try:
-             result = await self.runner.run_agent(app_name, goal)
-             
-             # Handle Output
-             if result:
-                 # Check for explicit failure from wrapper parse
-                 if result.get("status") == "failed" and "data" not in result:
-                      print(f"[Warn] Agent reported failure: {result}")
-                 else:
-                      start_data["data"] = result
-                      start_data["status"] = "success"
-                      start_data["data"]["numeric_price"] = self._parse_price(result.get("price"))
-                      if "restaurant" not in start_data["data"]:
-                          start_data["data"]["restaurant"] = "Unknown"
-             return start_data
+            print(f"[CommerceAgent] 🧠 Running Agent Logic...")
+            result = await agent.run()
+            print(f"[DEBUG] Raw Agent Result type: {type(result)}")
+            print(f"[DEBUG] Raw Agent Result: {result}")
+            
+            # 4. Parse Output
+            if result:
+                # Handle DroidAgent Event objects
+                if hasattr(result, 'reason'):
+                     clean_json = str(result.reason).strip()
+                else:
+                     clean_json = str(result).strip()
+                
+                print(f"[DEBUG] Processing result string: {clean_json[:100]}...")
+
+                # XML tag cleanup (common with DroidRun Reasoning)
+                if "<request_accomplished" in clean_json:
+                    try:
+                        clean_json = clean_json.split(">")[1].split("</request_accomplished>")[0].strip()
+                    except IndexError:
+                        pass
+                
+                # Markdown cleanup
+                if "```json" in clean_json:
+                    clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean_json:
+                    clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                
+                # Heuristic validation
+                if clean_json.startswith("{"):
+                    try:
+                         data = json.loads(clean_json)
+                         start_data["data"] = data
+                         start_data["status"] = "success"
+                         start_data["data"]["numeric_price"] = self._parse_price(data.get("price"))
+                         # Ensure restaurant key exists
+                         if "restaurant" not in start_data["data"]:
+                              start_data["data"]["restaurant"] = "Unknown"
+                    except json.JSONDecodeError:
+                         print(f"[Warn] JSON Decode Error: {clean_json}")
+                else:
+                     print(f"[Warn] Agent output was not JSON: {clean_json[:50]}...")
+            else:
+                 print("[Warn] Agent returned None result.")
+            
+            return start_data
 
         except Exception as e:
-             print(f"[Error] Task Execution Failed: {e}")
-             return start_data
-
+            print(f"[Error] Task Execution Failed: {e}")
+            return start_data
 
     async def auto_order_cheapest(self, query):
         """
@@ -167,7 +285,7 @@ class CommerceAgent:
         return results
 
 async def main():
-    parser = argparse.ArgumentParser(description="BestBuy-Agent: Commerce Automation (MobileRun)")
+    parser = argparse.ArgumentParser(description="BestBuy-Agent: Commerce Automation (DroidRun)")
     parser.add_argument("--task", choices=['shopping', 'food'], default='shopping')
     parser.add_argument("--query", required=True)
     parser.add_argument("--action", choices=['search', 'order'], default='search', help="Action to perform")
@@ -203,6 +321,6 @@ async def main():
         print(json.dumps(results, indent=2))
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

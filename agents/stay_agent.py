@@ -5,13 +5,14 @@ import google.generativeai as genai
 import sys
 from datetime import datetime
 
-# Import the new wrapper
+# --- DroidRun Professional Architecture Imports ---
 try:
-    from agents.mobile_run_wrapper import MobileRunWrapper
+    from droidrun.agent.droid.droid_agent import DroidAgent
+    from droidrun.agent.utils.llm_picker import load_llm
+    from droidrun.tools.adb import AdbTools
 except ImportError:
-    # Handle running from root or subfolder
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from agents.mobile_run_wrapper import MobileRunWrapper
+    print("CRITICAL ERROR: 'droidrun' library not found.")
+    sys.exit(1)
 
 from schemas import HotelDetails, ItineraryDay, ItineraryActivity, FullTripPlan
 
@@ -22,9 +23,52 @@ class StayManager:
         self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if self.api_key:
             genai.configure(api_key=self.api_key)
+
+    async def _run_agent(self, goal: str) -> dict:
+        """Helper to run DroidAgent for Hotel Search."""
+        provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
+        llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.api_key)
+        
+        tools = await AdbTools.create()
+
+        agent = DroidAgent(
+            goal=goal, 
+            llm=llm, 
+            tools=tools,
+            vision=True, 
+            reasoning=True, 
+            timeout=1000, # Hardcoded, assuming default or acceptable timeout
+            debug=False
+        )
+        
+        try:
+            print(f"      🧠 StayAgent Analyzing...")
+            result = await agent.run()
             
-        # Initialize MobileRun Runner
-        self.runner = MobileRunWrapper(provider=provider, model=model)
+            # Robust Parsing
+            raw_text = str(result.reason) if hasattr(result, 'reason') else str(result)
+            import re
+            
+            json_match = re.search(r"```json\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+            if not json_match:
+                json_match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
+            
+            clean_json = "{}"
+            if json_match:
+                clean_json = json_match.group(1)
+            else:
+                clean_json = raw_text.strip()
+
+            try:
+                data = json.loads(clean_json)
+                return data
+            except json.JSONDecodeError:
+                print(f"[Warn] JSON Parse Error. Raw: {clean_json[:100]}...")
+                return {"status": "failed", "raw": clean_json}
+                
+        except Exception as e:
+            print(f"[Error] Agent Execution Failed: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def find_hotel(self, city: str, check_in_date: str) -> HotelDetails:
         print(f"🏨 Searching Hotel in {city} for {check_in_date}")
@@ -38,14 +82,12 @@ class StayManager:
             f"6. Click the central 'SEARCH' button. "
             f"7. Wait 10 seconds for the hotel list. "
             f"8. **SCROLL DOWN** slightly to see hotel cards. "
-            f"9. **CLICK** on the first hotel card/image to open details. "
-            f"10. Wait for details page. "
-            f"11. Extract: Hotel Name, Address, Price Per Night. "
-            f"12. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
+            f"9. Identify the FIRST hotel card in the list. "
+            f"10. Extract directly from card: Hotel Name, Location/Address, Price Per Night. "
+            f"11. Return strict JSON: {{'name': '...', 'address': '...', 'price_per_night': '...'}}."
         )
         
-        # Use Wrapper -> "Booking.com"
-        result = await self.runner.run_agent("Booking.com", goal)
+        result = await self._run_agent(goal)
         
         try:
              hotel = HotelDetails(
@@ -61,7 +103,6 @@ class StayManager:
     async def generate_itinerary(self, hotel_location: str, user_interests: str, days: int = 3) -> list[ItineraryDay]:
         print(f"🗺️ Generating Itinerary for {days} days based on interests: {user_interests}")
         
-        # This part uses LLM directly (Text Gen), not UI Agent, so it stays as is.
         prompt = (
             f"Create a {days}-day travel itinerary for a trip staying at {hotel_location}. "
             f"User Interests: {user_interests}. "
@@ -96,4 +137,3 @@ class StayManager:
         except Exception as e:
             print(f"Error generating itinerary: {e}")
             return []
-

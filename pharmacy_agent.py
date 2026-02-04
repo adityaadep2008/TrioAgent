@@ -6,35 +6,37 @@ import re
 import sys
 from dotenv import load_dotenv
 
-# Import MobileRun Wrapper
-try:
-    from agents.mobile_run_wrapper import MobileRunWrapper
-except ImportError:
-    # Handle imports from root
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
-    try:
-        from agents.mobile_run_wrapper import MobileRunWrapper
-    except ImportError:
-         print("CRITICAL ERROR: 'agents.mobile_run_wrapper' not found.")
-         sys.exit(1)
+# --- DroidRun Professional Architecture Imports ---
+# try:
+from droidrun.agent.droid.droid_agent import DroidAgent
+from droidrun.agent.utils.llm_picker import load_llm
+from droidrun.tools.adb import AdbTools
+# except ImportError:
+#     print("CRITICAL ERROR: 'droidrun' library not found or incompatible version.")
+#     print("Please ensure you have installed it: pip install droidrun")
+#     sys.exit(1)
 
 load_dotenv()
 
 class PharmacyAgent:
     """
     Agent to compare medicine prices across PharmEasy, Apollo 24|7, and Tata 1mg.
-    Uses MobileRun Cloud with DroidRun Fallback.
+    Follows the Professional Architecture.
     """
     
     def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
-        self.runner = MobileRunWrapper(provider=provider, model=model)
+        self.provider = provider
+        self.model = model
+        self._ensure_api_keys()
+
+    def _ensure_api_keys(self):
+        if self.provider == "gemini" and not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+             print("[Warn] GEMINI_API_KEY not found in env, checking GOOGLE_API_KEY")
 
     def _parse_price(self, price_str):
         if not price_str: return float('inf')
         try:
             clean = str(price_str).lower().replace(',', '').replace('₹', '').replace('rs', '').replace('rs.', '').strip()
-            # Handle "/ pack" text if present
-            clean = clean.split('/')[0].strip()
             match = re.search(r'\d+(\.\d+)?', clean)
             return float(match.group()) if match else float('inf')
         except:
@@ -66,22 +68,62 @@ class PharmacyAgent:
             f"Ensure strict JSON format."
         )
 
+        # --- Professional Config Setup ---
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
+
+        llm = load_llm(
+            provider_name=provider_name,
+            model=self.model,
+            api_key=api_key
+        )
+
+        tools = await AdbTools.create()
+
+        agent = DroidAgent(
+            goal=goal,
+            llm=llm,
+            tools=tools,
+            vision=True,
+            reasoning=False
+        )
+
         result_data = {"app": app_name, "medicine": medicine, "status": "failed", "data": {}, "numeric_price": float('inf')}
 
         try:
             print(f"[PharmaAgent] 🧠 Running Agent on {app_name} for {medicine}...")
-            # Execute via Wrapper
-            result = await self.runner.run_agent(app_name, goal)
+            result = await agent.run()
             
+            # --- Robust Output Parsing ---
             if result:
-                # Check for wrapper failure pattern
-                if result.get("status") == "failed" and "data" not in result:
-                     print(f"[Warn] Agent reported failure: {result}")
+                if hasattr(result, 'reason'):
+                     clean_json = str(result.reason).strip()
+                elif hasattr(result, 'message'):
+                     clean_json = str(result.message).strip()
                 else:
-                    result_data["data"] = result
-                    result_data["status"] = "success"
-                    # Default parsing
-                    result_data["numeric_price"] = self._parse_price(result.get("price"))
+                     clean_json = str(result).strip()
+
+                if "<request_accomplished" in clean_json:
+                    try:
+                        clean_json = clean_json.split(">")[1].split("</request_accomplished>")[0].strip()
+                    except IndexError:
+                        pass
+
+                if "```json" in clean_json:
+                    clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean_json:
+                    clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                
+                if clean_json.startswith("{"):
+                    try:
+                        data = json.loads(clean_json)
+                        result_data["data"] = data
+                        result_data["status"] = "success"
+                        result_data["numeric_price"] = self._parse_price(data.get("price"))
+                    except json.JSONDecodeError:
+                        print(f"[Warn] JSON Decode Error: {clean_json}")
+                else:
+                     print(f"[Warn] Agent output was not JSON: {clean_json[:50]}...")
             
             return result_data
 
@@ -89,8 +131,8 @@ class PharmacyAgent:
             print(f"[Error] Task Execution Failed for {app_name}: {e}")
             return result_data
 
-    async def compare_prices(self, meds_str, role, apps_filter=None):
-        all_apps = ["PharmEasy", "Apollo 24|7", "Tata 1mg"]
+    async def compare_prices(self, meds_input, role, apps_filter=None):
+        all_apps = ["Apollo 24|7", "Tata 1mg"]
         
         if apps_filter:
             # Filter logic: simple case-insensitive partial match
@@ -107,13 +149,23 @@ class PharmacyAgent:
         else:
             apps = all_apps
 
-        # Parse medicines: "Name:Qty, Name:Qty"
+        # Parse medicines
         med_list = []
-        for item in meds_str.split(','):
-            parts = item.strip().split(':')
-            name = parts[0].strip()
-            qty = int(parts[1].strip()) if len(parts) > 1 else 1
-            med_list.append({"name": name, "qty": qty})
+        if isinstance(meds_input, list):
+             # Expecting list of dicts: [{'name': '...', 'qty': ...}]
+             for item in meds_input:
+                 # Resilient handling if passed as list of strings (legacy) or dicts
+                 if isinstance(item, str):
+                     med_list.append({"name": item, "qty": 1})
+                 elif isinstance(item, dict):
+                     med_list.append(item)
+        else:
+            # String parsing
+            for item in meds_input.split(','):
+                parts = item.strip().split(':')
+                name = parts[0].strip()
+                qty = int(parts[1].strip()) if len(parts) > 1 else 1
+                med_list.append({"name": name, "qty": qty})
 
         print(f"\n[PharmaAgent] processing List: {med_list}")
         print(f"[PharmaAgent] Apps Selected: {apps}")
@@ -194,7 +246,6 @@ async def main():
     await agent.compare_prices(args.meds, args.role, apps_filter)
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # if sys.platform == 'win32':
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
-

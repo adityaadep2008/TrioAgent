@@ -51,6 +51,7 @@ git clone https://github.com/your-username/devrunauto.git
 cd devrunauto
 pip install -r requirements.txt
 ```
+*You should see "DroidRun Server Running" logs.*
 
 ### 3. Configuration (.env)
 Create a `.env` file in the root folder (copy from `.env.example`):

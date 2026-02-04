@@ -1003,3 +1003,5 @@ input:checked+.slider:before {
     color: #fff;
     font-family: 'Space Grotesk', sans-serif;
 }
+/* Secondary Button */
+.secondary-button { background: transparent; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: 8px; padding: 0.8rem 1.5rem; width: 100%; cursor: pointer; } .secondary-button:hover { border-color: var(--text-primary); color: var(--text-primary); }
