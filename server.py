@@ -14,6 +14,8 @@ from commerce_agent import CommerceAgent
 from ride_comparison_agent import RideComparisonAgent
 from pharmacy_agent import PharmacyAgent
 from event_coordinator_agent import EventCoordinatorAgent
+from agents.general_agent import GeneralAgent
+from fastapi.staticfiles import StaticFiles
 
 # Voyager-1 Imports
 from agents.transit_agent import TransitManager
@@ -26,6 +28,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("DroidServer")
 
 app = FastAPI()
+
+# Mount Frontend
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # CORS
 app.add_middleware(
@@ -120,11 +125,26 @@ class TaskPayload(BaseModel):
     source: str = None
     destination: str = None
     date: str = None
+    date: str = None
     user_interests: str = None
+
+class ChatPayload(BaseModel):
+    session_id: str
+    message: str
     
 @app.get("/")
 async def root():
-    return {"status": "DroidRun Server Running"}
+    return {"status": "DroidRun Server Running", "guide": "Access Voice OS at /static/accessibility.html"}
+
+# --- CHAT ENDPOINT ---
+general_agent = GeneralAgent()
+
+@app.post("/api/chat")
+async def chat_endpoint(payload: ChatPayload):
+    """Voice OS Endpoint"""
+    logger.info(f"Chat Request: {payload.message}")
+    response = await general_agent.chat(payload.session_id, payload.message)
+    return response
 
 @app.get("/tasks")
 async def get_tasks():

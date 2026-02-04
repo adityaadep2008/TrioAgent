@@ -1,107 +1,122 @@
-# DroidRun Auto 🤖📱
+# DroidRun Auto: Agentic OS 🤖📱
 
-**Autonomous Multi-Agent System for Mobile Interaction**
+**Voice-Activated Autonomous Mobile Agents for Accessibility & Automation**
 
-DroidRun Auto is a cutting-edge autonomous agent framework capable of executing complex real-world tasks on an Android device. By leveraging **Gemini 2.5 Flash** and the **DroidRun framework**, it orchestrates specialized agents to perform actions like price comparison, ride booking, pharmacy searches, and autonomous food ordering.
+DroidRun Auto is an "Agentic OS" that turns any Android device into a helpful assistant. It uses **Google Gemini 2.5 Flash** to understand your natural language commands and executes them on real mobile apps (Uber, Zomato, Amazon, Apollo, etc.) using either a **Local Android Device** (via DroidRun) or the **MobileRun Cloud Fleet**.
+
+Designed for **Accessibility**, the system features a high-contrast **Voice Interface** that allows elderly or disabled users to complete complex tasks just by speaking.
 
 ---
 
-## 🚀 Features
+## 🌟 Key Features
 
-*   **🛒 Autonomous Shopping**: Scans Amazon and Flipkart to find the best deals for a product.
-*   **🚕 Ride Comparison**: Compares prices between Uber and Ola (simulated/vision-based) to find the cheapest ride.
-*   **💊 Pharmacy Scout**: Searches online pharmacies like 1mg or Apollo for medicine availability.
-*   **🎈 Event Coordinator**:
-    *   Sends invitations via WhatsApp.
-    *   Polls for replies (e.g., "I want Pizza").
-    *   Autonomously researches food prices across Swiggy and Zomato.
-*   **🍔 Foodie Persona (NEW/HOT)**:
-    *   **Find Best Deal**: Searches Swiggy and Zomato for your craving and reports the cheapest option.
-    *   **Autonomous Order**: Actually places the order via Cash on Delivery (COD) for true "hands-off" convenience.
+*   **🎙️ Voice Agentic OS**:
+    *   **Speak**: "Book a cab to the airport."
+    *   **Listen**: The agent replies via Text-to-Speech: "Okay, finding the best ride..."
+    *   **Conversational**: "Which airport?" -> "Mumbai Terminal 2."
+*   **🛒 Shopping**: Finds and buys products on Amazon/Flipkart.
+*   **🍔 Food Ordering**: Compares Swiggy vs Zomato and places orders.
+*   **💊 Medicine**: Finds medicines on PharmEasy/Apollo.
+*   **🚕 Ride Booking**: Autosurfs Uber/Ola to find the cheapest ride.
+*   **✈️ Travel**: Plans full trips (Flight + Hotel + Cab) on MakeMyTrip/Booking.com.
+*   **☁️ Hybrid Execution**:
+    *   **Local Mode**: Uses your USB-connected Phone.
+    *   **Cloud Mode**: Uses `MobileRun` virtual devices in the cloud.
 
 ---
 
 ## 🛠️ Architecture
 
-The system is built with a modular "Persona" architecture:
-*   **Backend**: FastAPI server with WebSocket support for real-time status broadcasting.
-*   **Frontend**: A sleek, GSAP-animated web interface for selecting personas and monitoring tasks.
-*   **Agents**: specialized Python classes (`CommerceAgent`, `EventCoordinatorAgent`, etc.) wrapping DroidRun logic.
-*   **Vision & Reasoning**: Uses screen parsing (Vision) to interact with non-API-enabled mobile apps natively.
+*   **Brain**: `agents/general_agent.py` - Understanding intent & context.
+*   **Router**: `agents/agent_factory.py` - Smartly dispatching tasks to Cloud or Local.
+*   **API**: FastAPI Server (`server.py`) exposing `/api/chat`.
+*   **UI**: `frontend/accessibility.html` (Voice) & `frontend/index.html` (Dashboard).
+*   **Core**: DroidRun (Local) & MobileRun (Cloud).
 
 ---
 
-## 📦 Installation
+## 🚀 Getting Started
 
-### Prerequisites
-1.  **Android Phone** enabled with USB Debugging connected to PC.
-2.  **Python 3.10+** installed.
-3.  **ADB (Android Debug Bridge)** installed and available in PATH.
-4.  **Google Gemini API Key**.
+### 1. Prerequisites
+*   **Python 3.10+**
+*   **Android Device** (Enable "USB Debugging" & connect via USB).
+*   **API Keys**:
+    *   Google Gemini API Key (for intelligence).
+    *   MobileRun API Key (optional, for cloud mode).
 
-### Setup
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/your-username/devrunauto.git
-    cd devrunauto
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Environment Configuration**:
-    Create a `.env` file in the root directory:
-    ```env
-    GOOGLE_API_KEY=your_gemini_api_key_here
-    GEMINI_API_KEY=your_gemini_api_key_here
-    ```
-
----
-
-## 🚦 Usage
-
-### 1. Start the System (Recommended)
-Run the all-in-one launcher (if available) or start manually:
-
-**Backend (Terminal 1):**
+### 2. Installation
+Clone the repo and install dependencies:
 ```bash
-python server.py
+git clone https://github.com/your-username/devrunauto.git
+cd devrunauto
+pip install -r requirements.txt
 ```
 
-**Frontend (Terminal 2):**
+### 3. Configuration (.env)
+Create a `.env` file in the root folder (copy from `.env.example`):
 ```bash
-cd frontend
-python -m http.server 8081
+cp .env.example .env
+```
+Edit `.env` with your keys:
+```env
+# Required for Intelligence
+GOOGLE_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Mode Selection
+# True = Cloud (Requires MobileRun Key)
+# False = Local (Uses USB Device)
+USE_MOBILE_RUN=False
+MOBILERUN_API_KEY=your_mobilerun_api_key_here
 ```
 
-### 2. Access the Interface
-Open your browser and navigate to: `http://localhost:8081`
+### 4. Running the System
 
-### 3. Select a Persona
-*   **Shopper**: Enter a product name (e.g., "Nike Shoes") -> Watch it compare prices.
-*   **Food Order (Foodie)**:
-    *   Enter a craving (e.g., "Chicken Biryani").
-    *   **Toggle Switch**:
-        *   *Find Best Deal*: Safe mode. Scans apps and tells you the cheapest price.
-        *   *Autonomous Order*: **DANGER ZONE**. Will actually add to cart and place a COD order.
+#### Option A: The Accessibility Voice OS (Recommended)
+1.  Start the Server:
+    ```bash
+    python server.py
+    ```
+2.  Open your browser to:
+    👉 **http://localhost:8000/static/accessibility.html**
+3.  Click the **Microphone Button** and speak!
+    *   *"I want to order a Chicken Burger."*
+    *   *"Book a cab to Cyber Hub."*
+
+#### Option B: Individual Agents (CLI)
+You can run specific task agents directly from the terminal:
+```bash
+# Shop for iPhones
+python commerce_agent.py --action search --query "iPhone 15"
+
+# Compare Rides
+python ride_comparison_agent.py --pickup "Home" --drop "Office"
+
+# Send WhatsApp Invite
+python event_coordinator_agent.py --contacts "Mom, Dad" --event "Dinner" ...
+```
 
 ---
 
-## 📂 Project Structure
+## 📂 Directory Structure
 
-*   `server.py`: Main FastAPI entry point and WebSocket manager.
-*   `commerce_agent.py`: Logic for Shopping and Food Ordering (Swiggy/Zomato).
-*   `event_coordinator_agent.py`: Complex logic for WhatsApp coordination and event planning.
-*   `frontend/`: HTML/CSS/JS files for the web UI.
-*   `requirements.txt`: Python dependencies.
+| File/Folder | Description |
+| :--- | :--- |
+| `server.py` | Main Backend API & WebSocket Server. |
+| `agents/general_agent.py` | The "Brain" that handles conversation & routing. |
+| `agents/agent_factory.py` | Decides whether to run on Cloud vs Local. |
+| `agents/mobile_run_wrapper.py` | Wrapper for Cloud execution. |
+| `frontend/accessibility.html` | The Voice-First UI for accessibility. |
+| `commerce_agent.py` | Shopping/Food Agent. |
+| `ride_comparison_agent.py` | Uber/Ola Agent. |
+| `requirements.txt` | Dependency list. |
 
 ---
 
-## ⚠️ Disclaimer
+## ⚠️ Important Notes
+*   **Real Actions**: In "Local Mode", this software clicks real buttons on your phone. Watch it carefully!
+*   **Permissions**: Ensure your phone stays unlocked or has "Stay Awake" enabled during execution.
+*   **Cloud Mode**: MobileRun execution relies on having credits/quota.
 
-**This tool performs REAL actions on your device.**
-*   "Autonomous Order" mode **WILL** place orders if not interrupted. 
-*   Always monitor the agent during execution.
-*   The developers are not responsible for accidental orders or unintended messages sent by the agents.
+---
+*Built with ❤️ for AI Agents Hackathon 2026*

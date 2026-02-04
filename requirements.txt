@@ -4,3 +4,7 @@ argparse
 fastapi
 uvicorn
 websockets
+# MobileRun SDK
+mobilerun
+python-multipart
+google-generativeai
