@@ -21,6 +21,9 @@ from agents.stay_agent import StayManager
 from trip_visualizer import TripVisualizer
 from schemas import FullTripPlan
 
+# Import Factory
+from agents.agent_factory import AgentFactory
+
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("DroidServer")
@@ -102,6 +105,7 @@ manager = ConnectionManager()
 # Data Models
 class TaskPayload(BaseModel):
     persona: str
+    instruction: Optional[str] = None # Universal instruction
     product: Optional[str] = None
     url: Optional[str] = None
     # For Rider
@@ -367,6 +371,27 @@ async def run_agent_task(payload: TaskPayload):
             result = result_dict
             status = "success"
             msg = f"Trip to {payload.destination} is ready!"
+
+        elif payload.persona == "universal":
+            await log_and_broadcast(task_id, f"🤖 Universal Agent Mode: {payload.instruction}")
+            
+            # Use Factory directly
+            res = await AgentFactory.run_task(
+                app_identifier="Universal", 
+                instruction=payload.instruction,
+                provider="gemini"
+            )
+            
+            if res.get("status") == "failed":
+                status = "failed"
+                msg = f"❌ Error: {res.get('error')}"
+                result = res
+            else:
+                status = "success"
+                msg = f"✅ Task Executed: {res.get('status')}"
+                result = res
+            
+            await log_and_broadcast(task_id, msg)
 
         # Determine final status
         if result:
