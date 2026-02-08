@@ -121,23 +121,23 @@ class CommerceAgent:
             api_key=api_key
         )
 
-        # Instantiate DroidAgent using proper Config (v0.3.9 style)
+        # Instantiate DroidAgent using proper Config (v0.3.2 style)
         try:
-             # Initialize AdbTools
-             serial = os.getenv("DEVICE_SERIAL")
-             tools = AdbTools(serial=serial)
+             from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+             
+             manager_config = ManagerConfig(vision=True)
+             executor_config = ExecutorConfig(vision=True)
+             agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
+             telemetry_config = TelemetryConfig(enabled=False)
+             config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
              
              agent = DroidAgent(
                 goal=goal,
-                llm=llm,
-                tools=tools,
-                vision=True,
-                reasoning=False,
-                enable_tracing=False
+                llms=llm,
+                config=config
              )
         except ImportError:
              print("Fallback: Config classes not found, trying legacy init...")
-             # Legacy init attempt (likely won't work but keeping structure)
              agent = DroidAgent(
                 goal=goal,
                 llm=llm,

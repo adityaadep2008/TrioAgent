@@ -42,14 +42,7 @@ class NeuroOrchestrator:
             if not devices:
                 print("NeuroOrchestrator: No device found.")
                 return False
-            
-            # Prioritize configured serial
-            configured_serial = os.getenv("DEVICE_SERIAL")
-            if configured_serial:
-                 self.device_serial = configured_serial
-            else:
-                 self.device_serial = devices[0].serial
-                 
+            self.device_serial = devices[0].serial
             print(f"NeuroOrchestrator: Connected to {self.device_serial}")
             self.tools = AdbTools(serial=self.device_serial)
             
@@ -207,16 +200,13 @@ class NeuroOrchestrator:
         )
         
         # We use a short max_steps because this is a sub-task
-        # We use a short max_steps because this is a sub-task
         agent = DroidAgent(
             goal=instruction,
             llm=llm,
             tools=self.tools,
             max_steps=5, # Atomic!
             debug=True,
-            vision=False,
-            reasoning=False,
-            enable_tracing=False
+            vision=False 
         )
         
         handler = agent.run()

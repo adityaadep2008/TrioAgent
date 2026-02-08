@@ -29,18 +29,16 @@ class TransitManager:
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
         llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.api_key)
         
-        serial = os.getenv("DEVICE_SERIAL")
-        tools = AdbTools(serial=serial)  # Corrected from await AdbTools.create()
-        
+        tools = await AdbTools.create()
+
         agent = DroidAgent(
             goal=goal, 
             llm=llm, 
             tools=tools,
             vision=True, 
             reasoning=True,
-            timeout=self.timeout if hasattr(self, 'timeout') else 1000, 
-            debug=False,
-            enable_tracing=False
+            timeout=self.timeout, 
+            debug=False # Assuming debug is not needed for this helper or can be passed
         )
         
         try:
