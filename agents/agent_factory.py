@@ -21,15 +21,8 @@ try:
     from droidrun.agent.utils.llm_picker import load_llm
     from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
 except ImportError:
-    print("WARNING: 'droidrun' library not found. Local DroidRun disabled.")
-    # Define dummy classes to prevent NameError at module level if used in type hints or instantiation implies
-    DroidAgent = None
-    load_llm = None
-    DroidrunConfig = None
-    AgentConfig = None
-    ManagerConfig = None
-    ExecutorConfig = None
-    TelemetryConfig = None
+    print("CRITICAL ERROR: 'droidrun' library not found.")
+    sys.exit(1)
 
 # CONFIGURATION
 # Set this to FALSE if cloud credits run out during the demo!
