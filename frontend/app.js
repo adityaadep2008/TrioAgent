@@ -224,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
         utterance.pitch = 1;
         utterance.rate = 1;
 
-        // Visual Feedback
+        // Visual
         bigMicBtn.classList.add('speaking');
         utterance.onend = () => bigMicBtn.classList.remove('speaking');
 
@@ -239,157 +239,88 @@ document.addEventListener("DOMContentLoaded", () => {
         chatDisplay.scrollTop = chatDisplay.scrollHeight;
     }
 
-    // --- ROBUST SPEECH RECOGNITION (VAD & STATE MACHINE) ---
+    // SR
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
 
     if (SpeechRecognition) {
         recognition = new SpeechRecognition();
-        recognition.continuous = true; // KEEP LISTENING
-        recognition.interimResults = true; // Show text as you speak
-        recognition.lang = 'en-US'; // Critical for ensuring correct server connection
+        recognition.continuous = false; // Single command mode for stability
+        recognition.interimResults = true;
 
-        // --- CONFIGURATION ---
-        const SILENCE_DELAY = 2500; // 2.5 seconds of silence to finalize
+        let isListening = false;
 
-        // --- STATE MANAGEMENT ---
-        let logicalListeningState = false; // The source of truth for "Are we in a session?"
-        let silenceTimeoutId = null;
-        let finalTranscript = '';
-
-        // --- CONTROL FUNCTIONS ---
-        window.startSession = function () {
-            if (logicalListeningState) return;
-
-            logicalListeningState = true;
-            finalTranscript = '';
-
-            // Update UI
-            bigMicBtn.classList.add('listening');
-            voiceStatus.textContent = "Listening...";
-
-            // Start API
-            try {
-                recognition.start();
-            } catch (e) {
-                console.warn("API Start Error (clean):", e);
-            }
-        };
-
-        window.endSession = function () {
-            console.log("Ending Session. Logical State -> False");
-            logicalListeningState = false;
-            clearTimeout(silenceTimeoutId);
-
-            // Stop API
-            recognition.stop();
-
-            // Update UI
-            bigMicBtn.classList.remove('listening');
-            voiceStatus.textContent = "Processing...";
-
-            // Process Result
-            const textToSend = finalTranscript.trim();
-            if (textToSend.length > 0) {
-                sendVoiceToBackend(textToSend);
-            } else {
-                voiceStatus.textContent = "Tap to Speak";
-            }
-        };
-
-        // Button Handler
         bigMicBtn.addEventListener('click', () => {
-            if (logicalListeningState) {
-                window.endSession(); // Manual Stop
+            if (!isListening) {
+                try {
+                    recognition.start();
+                    isListening = true;
+                    bigMicBtn.classList.add('listening');
+                    voiceStatus.textContent = "Listening...";
+                } catch (e) { console.warn(e); }
             } else {
-                window.startSession(); // Manual Start
+                recognition.stop();
+                isListening = false;
+                bigMicBtn.classList.remove('listening');
+                voiceStatus.textContent = "Tap to Speak";
             }
         });
 
-        // --- EVENTS ---
-        recognition.onstart = () => {
-            console.log("API: Started");
+        recognition.onresult = async (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0])
+                .map(result => result.transcript)
+                .join('');
+
+            if (event.results[0].isFinal) {
+                isListening = false;
+                bigMicBtn.classList.remove('listening');
+                voiceStatus.textContent = "Thinking...";
+
+                addChatMessage(transcript, 'user');
+                window.lastVoiceCommand = true; // Flag for WS later
+
+                // Send to Chat API
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: "voice-web-" + Date.now(),
+                            message: transcript
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.response) {
+                        addChatMessage(data.response, 'agent');
+                        speak(data.response);
+                        voiceStatus.textContent = "Tap to Speak";
+                    }
+
+                } catch (e) {
+                    voiceStatus.textContent = "Error";
+                    speak("I'm having trouble connecting to the core.");
+                }
+            } else {
+                voiceStatus.textContent = transcript;
+            }
         };
 
-        recognition.onerror = (event) => {
-            console.error("Speech Error", event.error);
-            // Ignore 'no-speech' and 'aborted' (tab conflict)
-            if (event.error !== 'no-speech' && event.error !== 'aborted') {
-                // Revert to generic message as requested ("try to make sothing that works like that")
-                voiceStatus.textContent = "Error listening. Try again.";
+        recognition.onerror = (e) => {
+            console.error(e);
+            bigMicBtn.classList.remove('listening');
+            isListening = false;
+            if (e.error !== 'no-speech') {
+                voiceStatus.textContent = "Error: " + e.error;
             }
         };
 
         recognition.onend = () => {
-            console.log("API: Ended. Logical State:", logicalListeningState);
-            if (logicalListeningState) {
-                // Browser stopped, but we want to keep listening (Seamless Restart)
-                console.log("Creating seamless restart...");
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.error("Restart failed:", e);
-                    // If we can't restart, we must abort
-                    logicalListeningState = false;
-                    voiceStatus.textContent = "Error: Mic stopped unexpectedly.";
-                    bigMicBtn.classList.remove('listening');
-                }
-            }
+            bigMicBtn.classList.remove('listening');
+            isListening = false;
+            // Don't auto restart
         };
-
-        recognition.onresult = (event) => {
-            let interimTranscript = '';
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-
-            // Visual Update: Show exactly what is being heard
-            // Just like accessibility.html: "Listening..." is replaced by actual text
-            const currentText = finalTranscript + interimTranscript;
-            const display = currentText.trim().length > 0 ? currentText : "Listening...";
-            // Show result in the status text, trimmed to fit
-            voiceStatus.textContent = display.slice(-100);
-
-            // RESET SILENCE TIMER
-            clearTimeout(silenceTimeoutId);
-            silenceTimeoutId = setTimeout(() => {
-                console.log("Silence limit reached. Auto-submitting.");
-                window.endSession();
-            }, SILENCE_DELAY);
-        };
-
-        // Backend Communication
-        async function sendVoiceToBackend(text) {
-            voiceStatus.textContent = "Thinking...";
-            addChatMessage(text, 'user');
-            window.lastVoiceCommand = true;
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        session_id: "voice-web-" + Date.now(),
-                        message: text
-                    })
-                });
-
-                const data = await response.json();
-                if (data.response) {
-                    addChatMessage(data.response, 'agent');
-                    speak(data.response);
-                    voiceStatus.textContent = "Tap to Speak";
-                }
-            } catch (e) {
-                voiceStatus.textContent = "Error connecting.";
-                speak("I'm having trouble connecting to the core.");
-            }
-        }
 
     } else {
         voiceStatus.textContent = "Voice not supported in this browser.";

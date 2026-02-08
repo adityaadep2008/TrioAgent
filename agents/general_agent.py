@@ -1,7 +1,6 @@
 import os
 import json
 import asyncio
-import sys
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -15,6 +14,7 @@ except ImportError:
 try:
     from agents.agent_factory import AgentFactory
 except ImportError:
+    import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from agents.agent_factory import AgentFactory
 
@@ -26,82 +26,71 @@ class GeneralAgent:
     - Maintains conversation history.
     - Classifies Intent: CHAT vs ACTION.
     - Asks clarifying questions if ACTION parameters are missing.
-    - Delegates to Specialized Agents or AgentFactory.
+    - Delegates to AgentFactory.
     """
     
     def __init__(self, provider="gemini", model="models/gemini-2.5-flash"):
         self.provider = provider
         self.model = model
         # Simple in-memory session store: { session_id: [messages] }
+        # In prod, use Redis/DB.
         self.sessions: Dict[str, List[Dict]] = {}
-
-        # Initialize specialized agents
-        # We need to add root to path to import them
-        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if root_dir not in sys.path:
-            sys.path.append(root_dir)
-            
-        try:
-            from commerce_agent import CommerceAgent
-            from ride_comparison_agent import RideComparisonAgent
-            # Initialize them
-            self.food_agent = CommerceAgent(model=model)
-            self.ride_agent = RideComparisonAgent(model=model)
-            print("✅ Specialized Agents Loaded in GeneralAgent")
-        except ImportError as e:
-            print(f"⚠️ Warning: Specialized agents could not be imported: {e}")
-            self.food_agent = None
-            self.ride_agent = None
         
-        # System Prompt defines the persona and outputs
+        # System Prompt defines the persona
         self.system_prompt = (
             "You are 'Sanjeevani', a helpful, patience, and smart Agentic OS assistant designed for elders. "
             "Your goal is to help them navigate their phone and perform tasks. "
-            "Tone: Warm, respectful, clear, and reassuring."
+            "Tone: Warm, respectful, clear, and reassuring. "
             "\n"
-            "MEMORY RULES:\n"
-            "1. ALWAYS remember previous turns in the conversation.\n"
-            "2. If user provides details (like 'Fried Rice') in one turn and confirms app (like 'Zomato') in the next, COMBINE them.\n"
-            "\n"
-            "CAPABILITIES & JSON OUTPUTS:\n"
-            "1. Order Food (Zomato/Swiggy)\n"
-            "   Required: 'item' (e.g. 'Fried Rice'), 'action' ('order' or 'search')\n"
-            "   Output: { \"type\": \"execute\", \"domain\": \"food\", \"item\": \"...\", \"action\": \"order/search\", \"app_preference\": \"Zomato/Swiggy/None\" }\n"
-            "2. Book Rides (Uber/Ola)\n"
-            "   Required: 'pickup', 'drop', 'type' (optional)\n"
-            "   Output: { \"type\": \"execute\", \"domain\": \"ride\", \"pickup\": \"...\", \"drop\": \"...\", \"mode\": \"cab\" }\n"
-            "3. General Tasks\n"
-            "   Output: { \"type\": \"execute\", \"domain\": \"general\", \"app\": \"App Name\", \"instruction\": \"...\" }\n"
+            "CAPABILITIES:\n"
+            "1. Book Rides (Uber, Ola)\n"
+            "2. Order Food (Zomato, Swiggy)\n"
+            "3. Buy Medicine (PharmEasy, Apollo)\n"
+            "4. Book Flights/Hotels (MakeMyTrip, Booking.com)\n"
+            "6. General Phone Control (Settings, Bluetooth, WiFi, etc.)\n"
             "\n"
             "PROTOCOL:\n"
-            "1. ANALYZE user input + History.\n"
+            "1. ANALYZE user input.\n"
             "2. IF user wants to chat/greet -> Reply warmly.\n"
             "3. IF user wants a task -> CHECK if all details are present.\n"
-            "4. IF details missing -> ASK clarifying question.\n"
-            "5. IF details clear -> RETURN the JSON block.\n"
+            "   - Cab: pickup, drop, type (optional)\n"
+            "   - Food: item, app (optional)\n"
+            "   - Medicine: name\n"
+            "   - Message: contact, message\n"
+            "   - System: instruction (e.g. 'turn off bluetooth')\n"
+            "4. IF details missing -> ASK clarifying question (one at a time).\n"
+            "5. IF details clear -> RETURN a special JSON block to trigger action.\n"
             "\n"
             "OUTPUT FORMAT:\n"
             "If replying/asking: Just plain text.\n"
-            "If ready to execute: Wrapp JSON in ```json ... ```"
+            "If ready to execute: \n"
+            "```json\n"
+            "{\n"
+            "  \"type\": \"execute\",\n"
+            "  \"app\": \"App Name\" (or \"System\" for settings),\n"
+            "  \"instruction\": \"Exact step-by-step goal for the agent...\",\n"
+            "  \"speak\": \"Okay, I am doing that now.\"\n"
+            "}\n"
+            "```"
         )
 
     async def chat(self, session_id: str, user_text: str) -> Dict[str, Any]:
         """
-        Main entry point. Returns { "response": "...", "action_debug": ... }
+        Main entry point. Returns { "text": "...", "action": ... }
         """
-        # 1. Initialize Session if needed
+        # 1. Initialize Session
         if session_id not in self.sessions:
-            self.sessions[session_id] = []
+            self.sessions[session_id] = [
+                {"role": "user", "parts": [f"System: {self.system_prompt}"]} # Priming
+            ]
         
         history = self.sessions[session_id]
-        
-        # 2. Add User Message
         history.append({"role": "user", "parts": [user_text]})
         
-        # 3. Call LLM
+        # 2. Call LLM (Using DroidRun's LLM Picker or direct)
         response_text = await self._call_llm(history)
         
-        # 4. Parse Response for Actions
+        # 3. Parse Response
         action = None
         clean_text = response_text
         
@@ -112,29 +101,36 @@ class GeneralAgent:
                 json_data = json.loads(json_match.group(1))
                 if json_data.get("type") == "execute":
                     action = json_data
-                    # If there's a 'speak' field, use it, otherwise use a generic message
-                    clean_text = json_data.get("speak", "One moment, I am handling that for you.")
+                    clean_text = json_data.get("speak", "Executing task...")
                     
-                    # 5. EXECUTE AGENT
-                    print(f"🤖 Triggering Domain: {action.get('domain')} - {action}")
+                    # 4. EXECUTE AGENT IF ACTION DETECTED
+                    print(f"🤖 Triggering Agent: {action['app']}")
                     
-                    execution_result = await self._execute_action(action)
+                    # Run in background or await? 
+                    # For responsiveness, we usually await if it's fast, or return "Started"
+                    # User asked for "Not Fail", so let's await to confirm start, 
+                    # but maybe the actual long-running task should be async.
+                    # For this demo, we'll await the result to give immediate feedback.
                     
-                    # Enhance the response with the result
-                    if execution_result.get("status") == "success":
-                         msg = execution_result.get("message", "Task completed.")
-                         clean_text = f"Done! {msg}"
-                         # Add price details if implicit
-                         if 'details' in execution_result and 'price' in str(execution_result['details']):
-                             clean_text += " I found some good options."
+                    agent_res = await AgentFactory.run_task(
+                        app_identifier=action['app'],
+                        instruction=action['instruction'],
+                        provider=self.provider,
+                        model=self.model
+                    )
+                    
+                    if agent_res.get("status") == "success":
+                         clean_text = f"Done! {agent_res.get('message', 'Task completed successfully.')}"
+                         # Add specific details if available
+                         if 'price' in str(agent_res): 
+                             clean_text += f" The price is {agent_res.get('price', '')}."
                     else:
-                         clean_text = f"I encountered an issue: {execution_result.get('error', 'Unknown Error')}"
-
+                         clean_text = f"I tried, but ran into an issue: {agent_res.get('error', 'Unknown error')}."
+            
         except Exception as e:
-            print(f"Error parsing/executing agent response: {e}")
-            clean_text += f" (System Error: {str(e)})"
+            print(f"Error parsing general agent response: {e}")
         
-        # 6. Update History with Assistant Response
+        # 5. Update History
         history.append({"role": "model", "parts": [response_text]})
         
         return {
@@ -142,99 +138,42 @@ class GeneralAgent:
             "action_debug": action
         }
 
-    async def _execute_action(self, action: Dict) -> Dict:
-        """Routes the action to the correct specialized agent."""
-        domain = action.get("domain")
+    async def _call_llm(self, history: List[Dict]) -> str:
+        """Helper to call Gemini via DroidRun or Direct"""
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        
+        # Simplify history for API consumption if needed, 
+        # but Gemini SDK handles the list format well usually.
+        # We'll use a direct generation here for simplicity/speed if DroidRun is heavy,
+        # but let's try to align with the project's imports if possible.
         
         try:
-            # --- FOOD DOMAIN ---
-            if domain == "food" and self.food_agent:
-                item = action.get("item")
-                act = action.get("action", "search")
-                app_pref = action.get("app_preference")
-                
-                # Check specifics
-                if act == "order" and not app_pref:
-                    # Autonomous auto-order
-                    return await self.food_agent.auto_order_cheapest(item)
-                else:
-                    # Specific app or search
-                    target_app = app_pref if app_pref and app_pref != "None" else "Zomato"
-                    return await self.food_agent.execute_task(target_app, item, "food item", action=act)
-
-            # --- RIDE DOMAIN ---
-            elif domain == "ride" and self.ride_agent:
-                pickup = action.get("pickup")
-                drop = action.get("drop")
-                mode = action.get("mode", "cab")
-                
-                # Use book_cheapest_ride wrapper
-                return await self.ride_agent.book_cheapest_ride(pickup, drop, mode)
-
-            # --- GENERAL / FALLBACK ---
-            else:
-                # Default to AgentFactory (Autonomous DroidRun)
-                app_name = action.get("app")
-                instruction = action.get("instruction")
-                if not instruction:
-                    # Construct instruction from domain info if general agent failed to generate one
-                    instruction = f"Open {app_name} and do the task."
-                
-                return await AgentFactory.run_task(
-                    app_identifier=app_name, 
-                    instruction=instruction,
-                    provider=self.provider,
-                    model=self.model
-                )
-                
-        except Exception as e:
-            return {"status": "failed", "error": str(e)}
-
-    async def _call_llm(self, history: List[Dict]) -> str:
-        """Helper to call Gemini via Google GenAI SDK"""
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        if not api_key: return "Configuration Error: API Key missing."
-
-        try:
             import google.generativeai as genai
+            if not api_key: return "Configuration Error: API Key missing."
+            
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel(self.model)
             
-            # Construct Chat History
-            # We insert the System Prompt into the very first turn to ensure persistence
-            # Logic: If history is empty, start with System Prompt.
-            # If history exists, we assume the first message already had it? 
-            # No, 'history' arg is just the raw list.
-            
+            # Convert history to Gemini format (User/Model)
             chat_history = []
-            
-            # Prepend System Prompt to the first user message if possible
-            # or use system_instruction if supported (Gemini 1.5 supports it nicely)
-            # Let's try system_instruction first, it's cleaner.
-            
-            model = genai.GenerativeModel(
-                model_name=self.model,
-                system_instruction=self.system_prompt
-            )
-            
-            # Convert roles
             for h in history:
                 role = "user" if h["role"] == "user" else "model"
+                # Handle system prompt hack (Gemini doesn't support 'system' role in chat usually, 
+                # so we merged it into first user message or use system_instruction in beta)
                 parts = h["parts"]
                 chat_history.append({"role": role, "parts": parts})
             
-            # Start Chat
-            # Use history[:-1] as past, and last msg as new input
-            if chat_history:
-                last_msg = chat_history[-1]
-                past_history = chat_history[:-1]
-                
-                chat = model.start_chat(history=past_history)
-                response = chat.send_message(last_msg["parts"][0])
-                return response.text
-            else:
-                return "Hello! How can I help?"
-                
+            # Generate
+            # We treat the whole thing as a chat session or just send valid history
+            # To be safe, let's just use generate_content with the list
+            # But the first item is our 'System' hack. The library might complain if we feed it directly execution.
+            
+            # Quick hack: Consolidate strict history for the chat object
+            # Ideally we keep a persistent chat object, but for REST API statelessness we rebuild.
+            
+            chat = model.start_chat(history=chat_history[:-1]) # All except last
+            response = chat.send_message(chat_history[-1]["parts"][0])
+            return response.text
+            
         except Exception as e:
-            print(f"LLM Error: {e}")
-            return f"I am having trouble thinking right now. ({e})"
+            return f"I'm sorry, my brain is having trouble connecting. Error: {e}"
