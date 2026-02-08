@@ -8,21 +8,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- MobileRun SDK ---
+# --- MobileRun SDK ---
 try:
-    from mobilerun import MobileRunClient
+    from agents.mobilerun_client import MobileRunCloudClient
 except ImportError:
-    try:
-        from mobile_use import MobileRunClient
-    except ImportError:
-        # If sdk not installed, we will rely 100% on fallback
-        MobileRunClient = None
-        print("[MobileRun] SDK not found. Will default to DroidRun.")
+    MobileRunCloudClient = None
+    print("[MobileRun] Client not found.")
 
 # --- DroidRun Imports (for Fallback) ---
 try:
     from droidrun.agent.droid import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.agent.droid import DroidAgent
+    from droidrun.agent.utils.llm_picker import load_llm
 except ImportError:
     print("CRITICAL ERROR: 'droidrun' library not found.")
     sys.exit(1)
@@ -66,45 +64,42 @@ class MobileRunWrapper:
         self.gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         
         self.client = None
-        if self.mobilerun_key and MobileRunClient:
+        if self.mobilerun_key and MobileRunCloudClient:
             try:
-                self.client = MobileRunClient(api_key=self.mobilerun_key)
-                print("[Init] MobileRun Client Ready ☁️")
+                self.client = MobileRunCloudClient(api_key=self.mobilerun_key, gemini_key=self.gemini_key)
+                print("[Init] MobileRun Cloud Client Ready 🚀")
             except Exception as e:
-                print(f"[Init] MobileRun Client Failed: {e}. using Local DroidRun.")
+                print(f"[Init] Cloud Client Failed: {e}. using Local DroidRun.")
         else:
-            print("[Init] MobileRun Key missing or SDK absent. Using Local DroidRun.")
+            print("[Init] MobileRun Key missing. Using Local DroidRun.")
 
     async def run_agent(self, app_name: str, goal: str) -> dict:
         """
         Attempts to run via MobileRun. Falls back to DroidRun on failure.
         """
-        app_id = self.APP_MAPPING.get(app_name)
-        
         # --- 1. MobileRun Execution ---
-        if self.client and app_id:
+        if self.client:
             try:
-                print(f"[MobileRun] ☁️ Submitting Job for {app_name} ({app_id})...")
-                job = await self.client.submit_job(
-                    app_id=app_id,
-                    instruction=goal,
-                    device="pixel_8_pro",
-                    session_id=f"session_{os.getpid()}",
-                    stream=True
-                )
+                print(f"[MobileRun] ☁️ Submitting Job for {app_name}...")
                 
-                print("[MobileRun] Waiting for result...")
-                result = await job.result()
+                # Combine app context into goal if needed
+                full_task = f"In app '{app_name}': {goal}"
                 
-                if result.status == "COMPLETED":
-                    print("[MobileRun] ✅ Success!")
-                    # Handle Output format (assume Cloud returns parseable Text or JSON)
-                    return self._parse_output(result.output)
-                else:
-                    print(f"[MobileRun] ❌ Job Failed: {result.status}")
-                    # Fallthrough to backup
+                result = await self.client.run(full_task)
+                
+                # Parse the response
+                if isinstance(result, dict) and "response" in result:
+                     # Attempt to parse inner JSON if string
+                     try:
+                         if isinstance(result["response"], str):
+                            return json.loads(result["response"])
+                         return result["response"]
+                     except:
+                         return result
+                return result
+
             except Exception as e:
-                print(f"[MobileRun] ⚠️ Error: {e}")
+                print(f"[MobileRun] ⚠️ Cloud Error: {e}")
                 # Fallthrough to backup
         
         # --- 2. DroidRun Logic (Fallback) ---
@@ -118,13 +113,19 @@ class MobileRunWrapper:
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
         llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.gemini_key)
         
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
-
-        agent = DroidAgent(goal=goal, llms=llm, config=config)
+        # Initialize AdbTools
+        from droidrun.tools.adb import AdbTools
+        serial = os.getenv("DEVICE_SERIAL")
+        tools = AdbTools(serial=serial)
+        
+        agent = DroidAgent(
+            goal=goal, 
+            llm=llm, 
+            tools=tools, 
+            vision=True, 
+            reasoning=False, 
+            enable_tracing=False
+        )
         
         try:
             print(f"      [DroidRun] 🧠 Analyzing...")

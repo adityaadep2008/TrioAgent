@@ -78,14 +78,17 @@ class PharmacyAgent:
             api_key=api_key
         )
 
-        tools = await AdbTools.create()
+        # tools = await AdbTools.create() # AdbTools is synchronous in init usually
+        serial = os.getenv("DEVICE_SERIAL")
+        tools = AdbTools(serial=serial)
 
         agent = DroidAgent(
             goal=goal,
             llm=llm,
             tools=tools,
             vision=True,
-            reasoning=False
+            reasoning=False,
+            enable_tracing=False
         )
 
         result_data = {"app": app_name, "medicine": medicine, "status": "failed", "data": {}, "numeric_price": float('inf')}

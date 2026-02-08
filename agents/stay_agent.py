@@ -29,16 +29,18 @@ class StayManager:
         provider_name = "GoogleGenAI" if self.provider == "gemini" else self.provider
         llm = load_llm(provider_name=provider_name, model=self.model, api_key=self.api_key)
         
-        tools = await AdbTools.create()
-
+        serial = os.getenv("DEVICE_SERIAL")
+        tools = AdbTools(serial=serial) # Corrected from await AdbTools.create()
+        
         agent = DroidAgent(
             goal=goal, 
             llm=llm, 
-            tools=tools,
+            tools=tools, 
             vision=True, 
             reasoning=True, 
             timeout=1000, # Hardcoded, assuming default or acceptable timeout
-            debug=False
+            debug=False,
+            enable_tracing=False
         )
         
         try:

@@ -104,18 +104,17 @@ class RideComparisonAgent:
         )
 
         try:
-             from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
-             
-             manager_config = ManagerConfig(vision=True)
-             executor_config = ExecutorConfig(vision=True)
-             agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
-             telemetry_config = TelemetryConfig(enabled=False)
-             config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
+             # Initialize AdbTools
+             serial = os.getenv("DEVICE_SERIAL")
+             tools = AdbTools(serial=serial)
              
              agent = DroidAgent(
                 goal=goal,
-                llms=llm,
-                config=config
+                llm=llm,
+                tools=tools,
+                vision=True,
+                reasoning=False,
+                enable_tracing=False
              )
         except ImportError:
              print("Fallback: Config classes not found, trying legacy init...")

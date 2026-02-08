@@ -9,17 +9,14 @@ load_dotenv()
 
 # --- Imports ---
 try:
-    from mobilerun import MobileRunClient
+    from agents.mobilerun_client import MobileRunCloudClient as MobileRunClient
 except ImportError:
-    try:
-        from mobile_use import MobileRunClient
-    except ImportError:
-        MobileRunClient = None
+    MobileRunClient = None
 
 try:
     from droidrun.agent.droid import DroidAgent
     from droidrun.agent.utils.llm_picker import load_llm
-    from droidrun.config_manager import DroidrunConfig, AgentConfig, ManagerConfig, ExecutorConfig, TelemetryConfig
+    from droidrun.tools.adb import AdbTools
 except ImportError:
     print("WARNING: 'droidrun' library not found. Local DroidRun disabled.")
     # Define dummy classes to prevent NameError at module level if used in type hints or instantiation implies
@@ -71,19 +68,26 @@ class AgentFactory:
                     
                 client = MobileRunClient(api_key=api_key)
                 
-                job = await client.submit_job(
-                    app_id=app_package,
-                    instruction=instruction,
-                    device="pixel_8_pro",
-                    stream=True
-                )
-                result = await job.result()
+                # Cloud Client handles the complexity now
+                # We combine app context into the prompt
+                full_instruction = f"Open app {app_package} and {instruction}"
                 
-                if result.status == "COMPLETED":
-                    return AgentFactory._parse_output(result.output)
-                else:
-                    print(f"⚠️ Cloud Job Status: {result.status}")
-                    # Fallthrough
+                result = await client.run(full_instruction)
+                
+                # Result structure from wrapper is {"status": "success", "response": ...}
+                # or just the response depending on implementation. 
+                # Our implementation returns {"status": "success", "response": ...}
+                
+                if isinstance(result, dict):
+                    if "response" in result:
+                        val = result["response"]
+                        # If response is a string containing JSON
+                        if isinstance(val, str):
+                            return AgentFactory._parse_output(val)
+                        return val
+                    return result
+                
+                return AgentFactory._parse_output(str(result))
                 
             except Exception as e:
                 print(f"⚠️ Cloud Failed: {e}. Falling back to Local DroidRun.")
@@ -98,13 +102,19 @@ class AgentFactory:
         
         llm = load_llm(provider_name=provider_name, model=model, api_key=gemini_key)
         
-        manager_config = ManagerConfig(vision=True)
-        executor_config = ExecutorConfig(vision=True)
-        agent_config = AgentConfig(reasoning=False, manager=manager_config, executor=executor_config)
-        telemetry_config = TelemetryConfig(enabled=False)
-        config = DroidrunConfig(agent=agent_config, telemetry=telemetry_config)
-
-        agent = DroidAgent(goal=instruction, llms=llm, config=config)
+        
+        # Initialize AdbTools with specific serial if available
+        serial = os.getenv("DEVICE_SERIAL")
+        tools = AdbTools(serial=serial)
+        
+        agent = DroidAgent(
+            goal=instruction, 
+            llm=llm, 
+            tools=tools, 
+            vision=True,            # Enabled vision as in original config
+            reasoning=False,        # Disabled reasoning as in original config
+            enable_tracing=False    # Disabled telemetry as in original config
+        )
         
         try:
             result = await agent.run()
