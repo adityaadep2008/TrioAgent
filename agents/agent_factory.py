@@ -42,8 +42,7 @@ class AgentFactory:
         "PharmEasy": "com.pharmeasy.app",
         "Apollo 24|7": "com.apollo.patientapp",
         "Tata 1mg": "com.aranoah.healthkart.plus",
-        "Ola": "com.olacabs.customer",
-        "System": "com.android.settings"
+        "Ola": "com.olacabs.customer"
     }
 
     @staticmethod
